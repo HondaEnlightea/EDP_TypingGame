@@ -54,14 +54,15 @@ export class TypingEffects {
     const glyphs = this.preview.querySelectorAll<HTMLElement>('.glyph');
     const glyph = glyphs[this.previewIndex];
     if (!glyph) return;
+    const baseColor = getComputedStyle(glyph).color;
     this.play(glyph, [
-      { transform: 'translateY(0) scale(1)' },
-      { transform: 'translateY(-.12em) scale(1.16)', offset: .32 },
-      { transform: 'translateY(.025em) scale(.98)', offset: .7 },
-      { transform: 'translateY(0) scale(1)' },
+      { transform: 'translateY(0) scale(1)', color: baseColor, textShadow: 'none' },
+      { transform: 'translateY(-.12em) scale(1.16)', color: '#008eac', textShadow: '0 0 7px #23dcffb3, 0 0 18px #23dcff66', offset: .32 },
+      { transform: 'translateY(.025em) scale(.98)', color: baseColor, textShadow: '0 0 5px #23dcff33', offset: .7 },
+      { transform: 'translateY(0) scale(1)', color: baseColor, textShadow: 'none' },
     ], 420);
     const rect = glyph.getBoundingClientRect();
-    // Small, deterministic glints sit above the letter without recoloring its face.
+    // Small, deterministic glints sit above the popping letter.
     for (let i = 0; i < 3; i++) {
       const particle = document.createElement('i');
       particle.className = 'sparkle preview-sparkle';
