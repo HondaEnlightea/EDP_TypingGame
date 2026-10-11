@@ -1,0 +1,13 @@
+# Local reference material; never commit this PDF.
+/doc/遠雷亭_SLOT_年刊EDP2026_第2版.pdf
+
+# Temporary PDF inspection outputs.
+/tmp/pdfs/
+
+# Dependencies, build outputs, and browser test artifacts.
+node_modules/
+dist/
+.npm-cache/
+test-results/
+playwright-report/
+*.tsbuildinfo

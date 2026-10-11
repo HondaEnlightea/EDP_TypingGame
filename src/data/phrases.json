@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "phrases": [
+    { "id": "echigo-dangerous-people", "words": ["Echigo", "Dangerous", "People"], "meaningJa": "越後のヤバいやつら。EDPで親しまれているジョーク名称。", "tags": ["edp", "special"] },
+    { "id": "electronic-data-processing", "words": ["Electronic", "Data", "Processing"], "meaningJa": "電子データ処理。EDPという略称の本来の意味。", "tags": ["edp", "special"] },
+    { "id": "excellent-dance-performance", "words": ["Excellent", "Dance", "Performance"], "meaningJa": "最高のダンスパフォーマンス。", "tags": ["stage"] },
+    { "id": "exciting-dream-project", "words": ["Exciting", "Dream", "Project"], "meaningJa": "ワクワクする夢のプロジェクト。", "tags": ["creative"] },
+    { "id": "everyday-digital-practice", "words": ["Everyday", "Digital", "Practice"], "meaningJa": "毎日のデジタル練習。今日もキーボードに向き合おう。", "tags": ["digital"] },
+    { "id": "endless-donut-party", "words": ["Endless", "Donut", "Party"], "meaningJa": "終わらないドーナツパーティー。", "tags": ["fun"] },
+    { "id": "easy-drawing-practice", "words": ["Easy", "Drawing", "Practice"], "meaningJa": "気軽なお絵かき練習。", "tags": ["creative"] },
+    { "id": "electric-dance-party", "words": ["Electric", "Dance", "Party"], "meaningJa": "エレクトリックなダンスパーティー。", "tags": ["stage"] },
+    { "id": "early-dinner-plan", "words": ["Early", "Dinner", "Plan"], "meaningJa": "早めの夕食計画。お腹が空く前に決めておこう。", "tags": ["daily"] },
+    { "id": "enormous-dragon-power", "words": ["Enormous", "Dragon", "Power"], "meaningJa": "巨大なドラゴンの力。", "tags": ["fantasy"] },
+    { "id": "elegant-design-pattern", "words": ["Elegant", "Design", "Pattern"], "meaningJa": "美しいデザインパターン。", "tags": ["digital"] },
+    { "id": "epic-dungeon-puzzle", "words": ["Epic", "Dungeon", "Puzzle"], "meaningJa": "壮大なダンジョンの謎解き。", "tags": ["fantasy"] }
+  ]
+}
