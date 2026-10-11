@@ -4,6 +4,7 @@ test('開始・ミス・お題の完成・結果・再プレイを一通り遊�
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
+  await expect(page.locator('#preview-display')).toHaveText('ElectricDataProcessing');
   await expect(page.getByRole('button', { name: 'はじめる' })).toBeVisible();
   await page.screenshot({ path: 'test-results/preview-ready.png', fullPage: true });
   await page.getByRole('button', { name: 'はじめる' }).click();
@@ -36,6 +37,54 @@ test('開始・ミス・お題の完成・結果・再プレイを一通り遊�
   await input.press('e');
   await expect(input).toHaveValue('e');
   expect(errors).toEqual([]);
+});
+
+test('完成の演出中も入力でき、オフと再プレイで粒子を消せる', async ({ page }) => {
+  await page.addInitScript(() => {
+    const random = Math.random;
+    let calls = 0;
+    // Make the first shuffle put a special prompt next; retain natural particle positions.
+    Math.random = () => calls++ < 34 ? 24 / 35 : random();
+  });
+  await page.goto('/');
+  await page.getByRole('radio', { name: '練習' }).check();
+  await page.getByRole('button', { name: 'はじめる' }).click();
+  const input = page.getByRole('textbox');
+  await input.pressSequentially('EgaoDangoPan');
+  expect(await page.locator('.sparkle').count()).toBeGreaterThan(0);
+  await expect(page.locator('#word-display')).toHaveClass(/is-special/);
+  const next = (await page.locator('#word-display').innerText()).toLowerCase();
+  await input.press(next[0]!);
+  await expect(page.locator('#score-value')).toHaveText('13');
+  await expect.poll(() => page.locator('.sparkle').count()).toBe(0);
+  await page.screenshot({ path: 'test-results/preview-special.png', fullPage: true });
+  await input.pressSequentially(next.slice(1));
+  expect(await page.locator('.sparkle').evaluateAll(nodes => new Set(nodes.map(node => (node as HTMLElement).style.color)).size)).toBeGreaterThan(20);
+  await page.screenshot({ path: 'test-results/preview-sparkles.png', fullPage: true });
+  await page.getByRole('button', { name: '演出をオフにする' }).click();
+  await expect(page.locator('.sparkle')).toHaveCount(0);
+  await expect(input).toBeFocused();
+  await input.pressSequentially((await page.locator('#word-display').innerText()).toLowerCase());
+  await expect(page.locator('.sparkle')).toHaveCount(0);
+  await page.getByRole('button', { name: '演出をオンにする' }).click();
+  await page.getByRole('button', { name: '終了' }).click();
+  await page.getByRole('button', { name: 'もう一度' }).click();
+  await expect(page.locator('.sparkle')).toHaveCount(0);
+  await expect(input).toHaveValue('');
+  await expect(page.locator('#score-value')).toHaveText('0');
+});
+
+test('動きを抑える設定では粒子や繰り返すアニメーションを停止する', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await expect(page.locator('#preview-display .prompt-word').first()).toHaveCSS('animation-name', 'none');
+  await page.getByRole('button', { name: 'はじめる' }).click();
+  await page.getByRole('textbox').pressSequentially('EgaoDangoPan');
+  await expect(page.locator('.sparkle')).toHaveCount(0);
+  await expect(page.locator('#score-value')).toHaveText('12');
+  await page.getByRole('button', { name: '終了' }).click();
+  await expect(page.locator('.sparkle')).toHaveCount(0);
+  await expect(page.locator('#result-score')).toHaveText('12');
 });
 
 test('60秒で自動終了し、再プレイは新しい60秒で始まる', async ({ page }) => {
@@ -114,7 +163,9 @@ test('外部素材への通信なしで起動し、狭い画面でも横には�
   await page.goto('/');
   await expect(page.getByRole('img', { name: 'EDP', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: 'test-results/preview-mobile.png', fullPage: true });
   await page.getByRole('button', { name: 'はじめる' }).click();
+  await page.getByRole('textbox').pressSequentially('EgaoDangoPan');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: '終了' }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

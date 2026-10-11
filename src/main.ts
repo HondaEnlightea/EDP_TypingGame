@@ -4,6 +4,7 @@ import { TypingGame } from './game';
 import type { Mode } from './game';
 import { inputText, parsePhrases } from './phrases';
 import type { Phrase } from './phrases';
+import { TypingEffects } from './effects';
 
 const phrases = parsePhrases(phraseData);
 const game = new TypingGame(phrases);
@@ -16,6 +17,7 @@ app.innerHTML = `
       <a class="brand" href="./" aria-label="EDP TYPE ホーム">
         <img src="${logoUrl}" alt="EDP" width="82" height="39" /><span>TYPE</span>
       </a>
+      <button id="effects-toggle" class="effects-toggle" type="button" aria-pressed="true" aria-label="演出をオフにする"><span aria-hidden="true">✦</span> 演出</button>
     </header>
     <main>
       <section id="ready-view" class="ready-view" aria-labelledby="intro-title">
@@ -90,6 +92,10 @@ const wordDisplay = element('word-display');
 const timeValue = element('time-value');
 const scoreValue = element('score-value');
 const replayButton = element<HTMLButtonElement>('replay-button');
+const effects = new TypingEffects(element<HTMLButtonElement>('effects-toggle'));
+element('effects-toggle').addEventListener('click', () => {
+  if (game.snapshot().phase === 'playing') typingInput.focus();
+});
 let interval: ReturnType<typeof setInterval> | undefined;
 let renderedPhrase = '';
 let selectedMode: Mode = 'timed';
@@ -99,6 +105,7 @@ function buildWords(container: HTMLElement, phrase: Phrase): void {
   container.replaceChildren();
   container.style.setProperty('--prompt-length', String(inputText(phrase).length));
   container.setAttribute('aria-label', phrase.words.join(' '));
+  container.classList.toggle('is-special', phrase.tags.includes('special'));
   for (const word of phrase.words) {
     const group = document.createElement('span');
     group.className = 'prompt-word';
@@ -112,13 +119,16 @@ function buildWords(container: HTMLElement, phrase: Phrase): void {
   }
 }
 
-buildWords(element('preview-display'), phrases[0]!);
+buildWords(element('preview-display'), {
+  id: 'intro-preview', words: ['Electric', 'Data', 'Processing'], meaningJa: '', tags: [],
+});
 
 function accuracyText(accuracy: number | null): string {
   return accuracy === null ? '—' : `${accuracy.toFixed(1)}%`;
 }
 
 function showView(view: HTMLElement): void {
+  effects.clear();
   for (const section of [readyView, gameView, resultView]) section.hidden = section !== view;
 }
 
@@ -167,6 +177,7 @@ function showResult(): void {
   resultView.querySelector('details')!.open = false;
   showView(resultView);
   replayButton.focus();
+  if (state.score > 0) effects.burst(element('result-score').getBoundingClientRect(), false, 16);
 }
 
 function start(mode: Mode): void {
@@ -190,6 +201,9 @@ function start(mode: Mode): void {
 }
 
 function acceptLetter(key: string): void {
+  const previous = game.snapshot();
+  const glyph = wordDisplay.querySelectorAll<HTMLElement>('.glyph')[previous.position] ?? null;
+  const rect = wordDisplay.getBoundingClientRect();
   const outcome = game.type(key, performance.now());
   if (outcome === 'finished') { showResult(); return; }
   if (outcome === 'ignored') return;
@@ -200,6 +214,8 @@ function acceptLetter(key: string): void {
     setFeedback(`次は「${inputText(state.phrase)[state.position]}」`, true);
   } else {
     setFeedback();
+    if (outcome === 'completed') effects.burst(rect, previous.phrase.tags.includes('special'), previous.phrase.tags.includes('special') ? 46 : 24);
+    else effects.letter(glyph);
   }
 }
 
