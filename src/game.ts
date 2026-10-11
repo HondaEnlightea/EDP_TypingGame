@@ -47,7 +47,7 @@ export class TypingGame {
     this.position = this.score = this.misses = this.completed = this.combo = this.maxCombo = 0;
     this.startedAt = now;
     this.elapsedMs = 0;
-    // Each round introduces EDP with the first phrase, then shuffles the rest.
+    // Start with a short romaji prompt, then shuffle the remaining phrases.
     this.phrase = this.phrases[0]!;
     this.deck = this.shuffle(this.phrases.slice(1));
   }

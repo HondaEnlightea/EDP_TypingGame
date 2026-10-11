@@ -85,7 +85,7 @@ app.innerHTML = `
         <p class="result-edp">EDPには、こんな意味も。<strong>Echigo Dangerous People</strong><span>Electronic Data Processing</span></p>
       </section>
     </main>
-    <footer class="site-footer"><span>EDP TYPE <span class="footer-slash">/</span> CULTURE FESTIVAL 2026</span><span>12のお題で試せるプロトタイプ</span></footer>
+    <footer class="site-footer"><span>EDP TYPE <span class="footer-slash">/</span> CULTURE FESTIVAL 2026</span><span>${phrases.length}のお題で試せるプロトタイプ</span></footer>
   </div>
 `;
 

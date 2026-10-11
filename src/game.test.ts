@@ -6,12 +6,12 @@ import data from './data/phrases.json';
 const phrases = parsePhrases(data);
 
 describe('タイピングの進行と採点', () => {
-  it('開始前の入力を無視し、初期のお題はEDPのジョーク名称にする', () => {
+  it('開始前の入力を無視し、短いローマ字のお題から始める', () => {
     const game = new TypingGame(phrases);
     expect(game.type('e', 0)).toBe('ignored');
     game.start('timed', 1000);
     expect(game.snapshot()).toMatchObject({ phase: 'playing', score: 0, accuracy: null, remainingMs: 60_000 });
-    expect(inputText(game.snapshot().phrase)).toBe('echigodangerouspeople');
+    expect(inputText(game.snapshot().phrase)).toBe('egaodangopan');
   });
 
   it('大文字を受け付け、ミスで進めず、正確率とコンボを計算する', () => {
@@ -20,8 +20,8 @@ describe('タイピングの進行と採点', () => {
     expect(game.type('E', 10)).toBe('correct');
     expect(game.type('x', 20)).toBe('miss');
     expect(game.snapshot()).toMatchObject({ score: 1, misses: 1, position: 1, combo: 0, maxCombo: 1, accuracy: 50 });
-    game.type('C', 30);
-    game.type('H', 40);
+    game.type('G', 30);
+    game.type('A', 40);
     expect(game.snapshot()).toMatchObject({ score: 3, misses: 1, combo: 2, maxCombo: 2, accuracy: 75 });
   });
 
@@ -95,6 +95,12 @@ describe('タイピングの進行と採点', () => {
 });
 
 describe('問題集の検証', () => {
+  it('24組のローマ字問題と2つのEDP名称を収録する', () => {
+    expect(phrases.filter((phrase) => phrase.tags.includes('romaji'))).toHaveLength(24);
+    expect(phrases.filter((phrase) => phrase.tags.includes('special')).map(inputText)).toEqual([
+      'echigodangerouspeople', 'electronicdataprocessing',
+    ]);
+  });
   it('同じID、順番の違う頭文字、単語数、記号、空の問題集を拒否する', () => {
     const valid = data.phrases[0]!;
     const invalid = [
