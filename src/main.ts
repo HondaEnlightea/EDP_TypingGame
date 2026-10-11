@@ -122,14 +122,15 @@ function buildWords(container: HTMLElement, phrase: Phrase): void {
 buildWords(element('preview-display'), {
   id: 'intro-preview', words: ['Electric', 'Data', 'Processing'], meaningJa: '', tags: [],
 });
+effects.setPreview(element('preview-display'));
 
 function accuracyText(accuracy: number | null): string {
   return accuracy === null ? '—' : `${accuracy.toFixed(1)}%`;
 }
 
 function showView(view: HTMLElement): void {
-  effects.clear();
   for (const section of [readyView, gameView, resultView]) section.hidden = section !== view;
+  effects.refreshPreview();
 }
 
 function setFeedback(text = '', error = false): void {

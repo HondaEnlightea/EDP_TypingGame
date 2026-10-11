@@ -29,7 +29,7 @@ main { min-height: calc(100svh - 100px); padding: 52px 0 75px; }
 .ready-view { text-align: center; padding-top: clamp(12px, 5vh, 50px); }
 .preview-surface, .typing-surface { container-type: inline-size; width: 100%; }
 .preview-surface, .typing-surface, .result-score { position: relative; isolation: isolate; }
-.preview-surface::before, .typing-surface::before, .result-score::before {
+.typing-surface::before, .result-score::before {
   content: ''; position: absolute; z-index: -1; pointer-events: none;
   inset: -55px 5% -40px; border-radius: 50%;
   background: radial-gradient(ellipse at 30% 50%, #79d5ff26, transparent 62%), radial-gradient(ellipse at 70% 50%, #8d80ff24, transparent 62%);
@@ -40,13 +40,8 @@ main { min-height: calc(100svh - 100px); padding: 52px 0 75px; }
 .prompt-word { display: inline; }
 .glyph { border-bottom: 3px solid transparent; padding-bottom: 5px; }
 .initial { color: var(--blue); }
-.preview-surface .prompt-word {
-  background: linear-gradient(105deg, #152655 8%, #2646b2 30%, #087fb1 45%, #6742bf 60%, #152655 82%);
-  background-size: 240% 100%; background-clip: text; -webkit-background-clip: text;
-  animation: spectrum-flow 10s ease-in-out infinite alternate;
-}
-.preview-surface .glyph { color: transparent; }
-.preview-surface .initial { color: var(--blue); text-shadow: 0 0 22px #597fff35; }
+.preview-surface .glyph { display: inline-block; color: #66708a; transform-origin: 50% 75%; }
+.preview-surface .initial { color: var(--blue); }
 .instructions { color: var(--muted); font-size: 14px; line-height: 1.8; margin: 18px 0 37px; }
 .start-form { display: flex; flex-direction: column; align-items: center; gap: 24px; }
 .mode-options { border: 0; margin: 0; padding: 4px; display: flex; width: 232px; border-radius: 8px; background: #edf0f7; }
@@ -94,7 +89,7 @@ details summary { cursor: pointer; font-size: 12px; color: var(--muted); width: 
 .sparkle.mote { border-radius: 50%; clip-path: none; }
 @keyframes spectrum-flow { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
 @keyframes halo-drift { from { opacity: .55; transform: translateX(-12px) scale(.95); } to { opacity: 1; transform: translateX(12px) scale(1.04); } }
-html[data-effects="off"] .preview-surface::before, html[data-effects="off"] .typing-surface::before, html[data-effects="off"] .result-score::before { display: none; }
+html[data-effects="off"] .typing-surface::before, html[data-effects="off"] .result-score::before { display: none; }
 html[data-effects="off"] .prompt-word { animation: none; }
 html[data-effects="off"] .glyph { text-shadow: none; box-shadow: none; }
 .meaning { font-size: 15px; line-height: 1.9; color: var(--muted); margin: 23px 0 0; }

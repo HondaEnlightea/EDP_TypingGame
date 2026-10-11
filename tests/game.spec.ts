@@ -78,6 +78,7 @@ test('動きを抑える設定では粒子や繰り返すアニメーション�
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await expect(page.locator('#preview-display .prompt-word').first()).toHaveCSS('animation-name', 'none');
+  expect(await page.locator('#preview-display').evaluate(el => el.getAnimations({ subtree: true }).length)).toBe(0);
   await page.getByRole('button', { name: 'はじめる' }).click();
   await page.getByRole('textbox').pressSequentially('EgaoDangoPan');
   await expect(page.locator('.sparkle')).toHaveCount(0);
@@ -85,6 +86,48 @@ test('動きを抑える設定では粒子や繰り返すアニメーション�
   await page.getByRole('button', { name: '終了' }).click();
   await expect(page.locator('.sparkle')).toHaveCount(0);
   await expect(page.locator('#result-score')).toHaveText('12');
+});
+
+test('見本を左から一文字ずつポップし、演出オフと開始時に停止する', async ({ page }) => {
+  await page.clock.install();
+  await page.addInitScript(() => {
+    const pops: string[] = [];
+    (window as Window & { previewPops?: string[] }).previewPops = pops;
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args) {
+      if (this.matches('#preview-display .glyph')) pops.push(this.textContent ?? '');
+      return animate.apply(this, args);
+    };
+  });
+  await page.goto('/');
+  await page.clock.runFor(1000);
+  const pops = await page.evaluate(() => (window as Window & { previewPops?: string[] }).previewPops!);
+  expect(pops.slice(0, 3)).toEqual(['E', 'l', 'e']);
+  const preview = page.locator('#preview-display');
+  await expect(preview).toHaveText('ElectricDataProcessing');
+  await expect(preview.locator('.initial')).toHaveCount(3);
+  await expect(preview.locator('.initial').first()).toHaveCSS('color', 'rgb(23, 23, 237)');
+  await expect(preview.locator('.glyph:not(.initial)').first()).toHaveCSS('color', 'rgb(102, 112, 138)');
+  expect(await page.locator('.preview-sparkle').count()).toBeGreaterThan(0);
+  await page.screenshot({ path: 'test-results/preview-pop.png', fullPage: true });
+  await page.getByRole('button', { name: '演出をオフにする' }).click();
+  await expect(page.locator('.sparkle')).toHaveCount(0);
+  expect(await preview.evaluate(el => el.getAnimations({ subtree: true }).length)).toBe(0);
+  const disabled = await page.evaluate(() => (window as Window & { previewPops?: string[] }).previewPops!.length);
+  await page.clock.runFor(1200);
+  expect(await page.evaluate(() => (window as Window & { previewPops?: string[] }).previewPops!.length)).toBe(disabled);
+  await page.getByRole('button', { name: '演出をオンにする' }).click();
+  await page.clock.runFor(500);
+  await expect(page.locator('.preview-sparkle').first()).toBeAttached();
+  await page.getByRole('button', { name: 'はじめる' }).click();
+  await expect(page.locator('.preview-sparkle')).toHaveCount(0);
+  const stopped = await page.evaluate(() => (window as Window & { previewPops?: string[] }).previewPops!.length);
+  await page.clock.runFor(1000);
+  expect(await page.evaluate(() => (window as Window & { previewPops?: string[] }).previewPops!.length)).toBe(stopped);
+  await page.getByRole('button', { name: '終了' }).click();
+  await page.getByRole('button', { name: 'モード変更' }).click();
+  await page.clock.runFor(500);
+  expect(await page.evaluate(() => (window as Window & { previewPops?: string[] }).previewPops!.at(-1))).toBe('E');
 });
 
 test('60秒で自動終了し、再プレイは新しい60秒で始まる', async ({ page }) => {

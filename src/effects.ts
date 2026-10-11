@@ -4,18 +4,21 @@ export class TypingEffects {
   private readonly animations = new Set<Animation>();
   private readonly layer = document.createElement('div');
   private enabled = true;
+  private preview: HTMLElement | undefined;
+  private previewTimer: ReturnType<typeof setTimeout> | undefined;
+  private previewIndex = 0;
 
   constructor(private readonly toggle: HTMLButtonElement) {
     this.layer.className = 'sparkle-layer';
     this.layer.setAttribute('aria-hidden', 'true');
     document.body.append(this.layer);
-    this.motion.addEventListener('change', () => this.clear());
-    document.addEventListener('visibilitychange', () => { if (document.hidden) this.clear(); });
+    this.motion.addEventListener('change', () => this.refreshPreview());
+    document.addEventListener('visibilitychange', () => this.refreshPreview());
     toggle.addEventListener('click', () => {
       this.enabled = !this.enabled;
       document.documentElement.dataset.effects = this.enabled ? 'on' : 'off';
       this.updateToggle();
-      this.clear();
+      this.refreshPreview();
     });
     this.updateToggle();
   }
@@ -27,9 +30,56 @@ export class TypingEffects {
   }
 
   clear(): void {
+    clearTimeout(this.previewTimer);
+    this.previewTimer = undefined;
+    this.previewIndex = 0;
     for (const animation of this.animations) animation.cancel();
     this.animations.clear();
     this.layer.replaceChildren();
+  }
+
+  setPreview(preview: HTMLElement): void {
+    this.preview = preview;
+    this.refreshPreview();
+  }
+
+  refreshPreview(): void {
+    this.clear();
+    if (!this.enabled || this.motion.matches || document.hidden || !this.preview?.checkVisibility()) return;
+    this.previewTimer = setTimeout(() => this.popPreviewLetter(), 450);
+  }
+
+  private popPreviewLetter(): void {
+    if (!this.enabled || this.motion.matches || document.hidden || !this.preview?.checkVisibility()) return;
+    const glyphs = this.preview.querySelectorAll<HTMLElement>('.glyph');
+    const glyph = glyphs[this.previewIndex];
+    if (!glyph) return;
+    this.play(glyph, [
+      { transform: 'translateY(0) scale(1)' },
+      { transform: 'translateY(-.12em) scale(1.16)', offset: .32 },
+      { transform: 'translateY(.025em) scale(.98)', offset: .7 },
+      { transform: 'translateY(0) scale(1)' },
+    ], 420);
+    const rect = glyph.getBoundingClientRect();
+    // Small, deterministic glints sit above the letter without recoloring its face.
+    for (let i = 0; i < 3; i++) {
+      const particle = document.createElement('i');
+      particle.className = 'sparkle preview-sparkle';
+      particle.style.color = i === 1 ? '#48b9e2' : '#6289f5';
+      particle.style.width = particle.style.height = `${i === 1 ? 7 : 5}px`;
+      particle.style.left = `${rect.left + rect.width * (.2 + i * .3)}px`;
+      particle.style.top = `${rect.top + rect.height * .28}px`;
+      this.layer.append(particle);
+      const x = (i - 1) * 16;
+      const y = i === 1 ? -30 : -18;
+      this.play(particle, [
+        { transform: 'translate(-50%, -50%) scale(.2)', opacity: 0 },
+        { transform: `translate(calc(-50% + ${x * .4}px), calc(-50% + ${y * .4}px)) scale(1)`, opacity: .75, offset: .3 },
+        { transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(.1)`, opacity: 0 },
+      ], 520, true);
+    }
+    this.previewIndex = (this.previewIndex + 1) % glyphs.length;
+    this.previewTimer = setTimeout(() => this.popPreviewLetter(), this.previewIndex === 0 ? 1800 : 180);
   }
 
   private play(target: HTMLElement, frames: Keyframe[], duration: number, remove = false): void {
