@@ -6,18 +6,26 @@ E・D・Pを頭文字とする3単語を入力する、文化祭向けのタイ�
 
 Node.js 24系を推奨。この環境ではv24.14.1で動作確認。
 
-```sh
-npm ci
-npm run dev
+WindowsのPowerShellでは、次のように起動する。
+
+```powershell
+Set-Location 'C:\Users\Owner\Documents\GitHub\EDP_TypingGame'
+npm.cmd run dev
 ```
 
 ブラウザで `http://127.0.0.1:5173/` を開く。起動したターミナルを閉じるとサーバーも終了する。
 
+初回、または依存パッケージを変更した後は、起動前に一度だけ `npm.cmd ci` を実行する。通常の起動時には不要。
+
+`npm` だけだと、PowerShellが `npm.ps1` を選び、「このシステムではスクリプトの実行が無効になっている」と表示されることがある。このREADMEでは `npm.cmd` を明示して回避する。実行ポリシーの変更や管理者権限は不要。macOS/Linuxでは以下の `npm.cmd` を `npm` に読み替える。
+
+「Port 5173 is already in use」と出た場合は、ゲームがすでに起動していないか、上記URLを開いて確認する。ゲームが開けばそのまま遊べる。起動し直すときは、先に起動したターミナルで `Ctrl+C` を押してから再実行する。
+
 配布用のビルドを手元で確認する場合：
 
-```sh
-npm run build
-npm run preview
+```powershell
+npm.cmd run build
+npm.cmd run preview
 ```
 
 `http://127.0.0.1:4173/` で確認できる。`dist/`にHTML・CSS・JavaScript・ロゴが出力される。ブラウザでHTMLを直接開くのではなく、HTTPサーバーで配信する。初回のパッケージ導入には通信が必要だが、導入後の起動とプレイは外部素材への通信を必要としない。
@@ -56,10 +64,10 @@ npm run preview
 
 ## 検証
 
-```sh
-npm test
-npm run build
-npm run test:e2e
+```powershell
+npm.cmd test
+npm.cmd run build
+npm.cmd run test:e2e
 ```
 
 自動テストはゲームルールと問題データの検証、ブラウザでの開始・ミス・完成・終了・再プレイを確認する。ブラウザテストにはインストール済みのGoogle Chromeを使用する。
