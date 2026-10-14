@@ -1,0 +1,114 @@
+import { expect, test } from '@playwright/test';
+
+test('EDPを固定し、短い切り替え中にも入力できる', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-10-14T00:00:00Z') });
+  await page.goto('/');
+  await page.clock.pauseAt(new Date('2026-10-14T00:01:00Z'));
+  await page.getByRole('button', { name: 'はじめる' }).click();
+  await expect(page.locator('#word-display .initial')).toHaveText(['E', 'D', 'P']);
+  await expect(page.locator('#word-display .initial.reeling')).toHaveCount(0);
+  expect(await page.locator('#word-display .reeling').count()).toBeGreaterThan(0);
+  await page.screenshot({ path: 'test-results/preview-reel.png', fullPage: true });
+  const input = page.getByRole('textbox');
+  await input.pressSequentially('eg');
+  await expect(input).toHaveValue('eg');
+  await expect(page.locator('#word-display .current')).toHaveText('a');
+  await expect(page.locator('#word-display .current.reeling')).toHaveCount(0);
+  await page.clock.runFor(160);
+  await expect(page.locator('#word-display .reeling')).toHaveCount(0);
+  await input.pressSequentially('aodangopan');
+  await expect(page.locator('#score-value')).toHaveText('12');
+  await expect(input).toHaveValue('');
+  expect(await page.locator('#word-display .reeling').count()).toBeGreaterThan(0);
+  await page.getByRole('button', { name: '演出をオフにする' }).click();
+  await expect(page.locator('#word-display .reeling')).toHaveCount(0);
+  await expect(input).toBeFocused();
+  await page.getByRole('button', { name: '終了' }).click();
+  await page.getByRole('button', { name: 'もう一度' }).click();
+  await expect(page.locator('#word-display .reeling')).toHaveCount(0);
+});
+
+test('得点ごとのSingle、開始終了のShortと読み上げが重ならず、音を切り替えられる', async ({ page }) => {
+  await page.addInitScript(() => {
+    type Entry = { kind: 'effect' | 'speech' | 'cancel'; text: string; overlap?: boolean };
+    const log: Entry[] = [];
+    Object.defineProperty(window, 'SpeechSynthesisUtterance', { value: class {
+      voice = null;
+      lang = '';
+      rate = 1;
+      volume = 1;
+      onend = null;
+      onerror = null;
+      constructor(readonly text: string) {}
+    } });
+    (window as Window & { audioLog?: Entry[] }).audioLog = log;
+    const active = new Set<HTMLMediaElement>();
+    let talking = false;
+    let utterance: SpeechSynthesisUtterance | undefined;
+    const originalPlay = HTMLMediaElement.prototype.play;
+    const originalPause = HTMLMediaElement.prototype.pause;
+    HTMLMediaElement.prototype.play = function () {
+      log.push({ kind: 'effect', text: this.src, overlap: talking });
+      active.add(this);
+      this.addEventListener('ended', () => active.delete(this), { once: true });
+      return originalPlay.call(this).catch(error => { active.delete(this); throw error; });
+    };
+    HTMLMediaElement.prototype.pause = function () { active.delete(this); originalPause.call(this); };
+    Object.defineProperty(window, 'speechSynthesis', { value: {
+      getVoices: () => [{ lang: 'en-US', localService: true, default: true, name: 'Test local voice' }],
+      addEventListener: () => {},
+      speak: (next: SpeechSynthesisUtterance) => {
+        talking = true;
+        utterance = next;
+        log.push({ kind: 'speech', text: next.text, overlap: active.size > 0 });
+      },
+      cancel: () => {
+        talking = false;
+        log.push({ kind: 'cancel', text: utterance?.text ?? '' });
+        utterance = undefined;
+      },
+    } });
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'はじめる' }).click();
+  const logs = () => page.evaluate(() => (window as Window & { audioLog?: { kind: string; text: string; overlap?: boolean }[] }).audioLog!);
+  await expect.poll(async () => (await logs()).some(entry => entry.kind === 'speech' && entry.text === 'Egao Dango Pan')).toBe(true);
+  const input = page.getByRole('textbox');
+  await input.press('x');
+  await input.pressSequentially('EgaoDangoPan');
+  const next = await page.locator('#word-display').getAttribute('aria-label');
+  await expect.poll(async () => (await logs()).some(entry => entry.kind === 'speech' && entry.text === next)).toBe(true);
+  let log = await logs();
+  expect(log.filter(entry => entry.kind === 'effect' && entry.text.includes('Single'))).toHaveLength(12);
+  expect(log.filter(entry => entry.kind === 'cancel').length).toBeGreaterThan(0);
+  expect(log.some(entry => entry.overlap)).toBe(false);
+  await page.getByRole('button', { name: '音をオフにする' }).click();
+  await expect(input).toBeFocused();
+  const effectsBefore = (await logs()).filter(entry => entry.kind === 'effect').length;
+  await input.press('e');
+  expect((await logs()).filter(entry => entry.kind === 'effect')).toHaveLength(effectsBefore);
+  await page.getByRole('button', { name: '音をオンにする' }).click();
+  await page.getByRole('button', { name: '終了' }).click();
+  log = await logs();
+  expect(log.filter(entry => entry.kind === 'effect' && entry.text.includes('Short'))).toHaveLength(2);
+  expect(log.some(entry => entry.overlap)).toBe(false);
+  await page.getByRole('button', { name: 'もう一度' }).click();
+  await expect(page.locator('#score-value')).toHaveText('0');
+  expect((await logs()).filter(entry => entry.kind === 'effect' && entry.text.includes('Short'))).toHaveLength(3);
+});
+
+test('配置された2つのMP3をブラウザで実際にデコードできる', async ({ page }) => {
+  await page.goto('/');
+  const durations = await page.evaluate(async () => {
+    const context = new AudioContext();
+    try {
+      return await Promise.all(['Quiz-Ding_Dong04-4(Single).mp3', 'Quiz-Ding_Dong04-1(Short).mp3'].map(async name => {
+        const response = await fetch(new URL(name, location.href));
+        if (!response.ok) throw new Error(`${name}: ${response.status}`);
+        return (await context.decodeAudioData(await response.arrayBuffer())).duration;
+      }));
+    } finally { await context.close(); }
+  });
+  for (const duration of durations) expect(duration).toBeGreaterThan(0);
+  console.log(`MP3の長さ: Single=${durations[0]?.toFixed(3)}秒 / Short=${durations[1]?.toFixed(3)}秒`);
+});

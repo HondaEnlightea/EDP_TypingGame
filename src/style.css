@@ -21,7 +21,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .brand { display: inline-flex; gap: 15px; align-items: center; color: #19234a; text-decoration: none; }
 .brand img { width: 82px; height: 39px; object-fit: contain; }
 .brand > span { font: 600 20px var(--mono); letter-spacing: .15em; }
-.effects-toggle { margin-left: auto; border: 0; padding: 10px 12px; background: transparent; color: var(--muted); font-size: 12px; border-radius: 6px; }
+.header-controls { margin-left: auto; display: flex; gap: 4px; }
+.effects-toggle { border: 0; padding: 10px 12px; background: transparent; color: var(--muted); font-size: 12px; border-radius: 6px; }
 .effects-toggle > span { display: inline-block; color: #3971f4; font-size: 18px; vertical-align: -1px; text-shadow: 0 0 12px #59bfff80; }
 .effects-toggle:hover { background: #edf2ff; }
 .effects-toggle[aria-pressed="false"] > span { color: var(--muted); text-shadow: none; }
@@ -73,6 +74,10 @@ details summary { cursor: pointer; font-size: 12px; color: var(--muted); width: 
 .typing-surface:focus-within .current { border-bottom-color: var(--blue); }
 .typing-surface:not(:focus-within) { background: #f1f4fb; }
 .typing-surface .glyph { color: #53627d; }
+.typing-surface .glyph { position: relative; display: inline-block; }
+.typing-surface .reeling { color: transparent !important; text-shadow: none; }
+.typing-surface .reeling::after { content: attr(data-reel); position: absolute; inset: 0; color: #008eac; text-shadow: 0 0 10px #23dcff60; animation: reel-step 30ms linear infinite; }
+@keyframes reel-step { from { transform: translateY(-.13em); opacity: .65; } to { transform: translateY(.07em); opacity: 1; } }
 .typing-surface .initial { color: var(--blue); }
 .typing-surface .typed { color: #547cba; text-shadow: 0 0 15px #3a9cff25; }
 .typing-surface .current { color: #182348; background: #ebefff; border-bottom-color: #9daee7; }

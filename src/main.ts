@@ -5,6 +5,7 @@ import type { Mode } from './game';
 import { inputText, parsePhrases } from './phrases';
 import type { Phrase } from './phrases';
 import { TypingEffects } from './effects';
+import { GameAudio } from './audio';
 
 const phrases = parsePhrases(phraseData);
 const game = new TypingGame(phrases);
@@ -17,7 +18,10 @@ app.innerHTML = `
       <a class="brand" href="./" aria-label="EDP TYPE ホーム">
         <img src="${logoUrl}" alt="EDP" width="82" height="39" /><span>TYPE</span>
       </a>
-      <button id="effects-toggle" class="effects-toggle" type="button" aria-pressed="true" aria-label="演出をオフにする"><span aria-hidden="true">✦</span> 演出</button>
+      <div class="header-controls">
+        <button id="effects-toggle" class="effects-toggle" type="button" aria-pressed="true" aria-label="演出をオフにする"><span aria-hidden="true">✦</span> 演出</button>
+        <button id="sound-toggle" class="effects-toggle" type="button" aria-pressed="true" aria-label="音をオフにする">音</button>
+      </div>
     </header>
     <main>
       <section id="ready-view" class="ready-view" aria-labelledby="intro-title">
@@ -39,6 +43,7 @@ app.innerHTML = `
             <li>スペース不要。ミスしても、正しい文字を打てば続きます。</li>
             <li>60秒モードは開始と同時に計測。画面を離れても時間は進みます。</li>
             <li>練習モードは時間制限なし。「終了」で結果を見られます。</li>
+            <li>音は画面上部で切り替え。得点時は効果音を優先し、落ち着いてからお題の3単語を読みます。読み上げは端末の音声を使用します。</li>
           </ul>
         </details>
       </section>
@@ -93,6 +98,15 @@ const timeValue = element('time-value');
 const scoreValue = element('score-value');
 const replayButton = element<HTMLButtonElement>('replay-button');
 const effects = new TypingEffects(element<HTMLButtonElement>('effects-toggle'));
+const sound = new GameAudio(import.meta.env.BASE_URL);
+let soundEnabled = true;
+element('sound-toggle').addEventListener('click', () => {
+  soundEnabled = !soundEnabled;
+  sound.setEnabled(soundEnabled);
+  element('sound-toggle').setAttribute('aria-pressed', String(soundEnabled));
+  element('sound-toggle').setAttribute('aria-label', soundEnabled ? '音をオフにする' : '音をオンにする');
+  if (game.snapshot().phase === 'playing') typingInput.focus();
+});
 element('effects-toggle').addEventListener('click', () => {
   if (game.snapshot().phase === 'playing') typingInput.focus();
 });
@@ -141,15 +155,18 @@ function setFeedback(text = '', error = false): void {
 
 function renderPrompt(): void {
   const { phrase, position } = game.snapshot();
-  if (renderedPhrase !== phrase.id) {
+  const changed = renderedPhrase !== phrase.id;
+  if (changed) {
     renderedPhrase = phrase.id;
     buildWords(wordDisplay, phrase);
     element('meaning').textContent = phrase.meaningJa;
   }
-  wordDisplay.querySelectorAll('.glyph').forEach((span, i) => {
+  wordDisplay.querySelectorAll<HTMLElement>('.glyph').forEach((span, i) => {
     span.classList.toggle('typed', i < position);
     span.classList.toggle('current', i === position);
+    if (i <= position) effects.resolve(span);
   });
+  if (changed) effects.reveal(wordDisplay);
   const text = inputText(phrase);
   typingInput.value = text.slice(0, position);
   typingInput.setAttribute('aria-description', `お題：${phrase.words.join(' ')}。次の文字：${text[position] ?? ''}。スペースは不要です。`);
@@ -167,6 +184,7 @@ function showResult(): void {
   clearInterval(interval);
   interval = undefined;
   const state = game.snapshot();
+  sound.finish();
   typingInput.disabled = true;
   element('result-title').textContent = state.mode === 'timed' && state.remainingMs === 0 ? 'タイムアップ' : '結果';
   element('result-score').textContent = String(state.score);
@@ -194,6 +212,7 @@ function start(mode: Mode): void {
   renderPrompt();
   renderStats();
   typingInput.focus();
+  sound.start(game.snapshot().phrase.words);
   interval = setInterval(() => {
     game.tick(performance.now());
     if (game.snapshot().phase === 'finished') showResult();
@@ -215,6 +234,8 @@ function acceptLetter(key: string): void {
     setFeedback(`次は「${inputText(state.phrase)[state.position]}」`, true);
   } else {
     setFeedback();
+    sound.score();
+    if (outcome === 'completed') sound.prompt(game.snapshot().phrase.words);
     if (outcome === 'completed') effects.burst(rect, previous.phrase.tags.includes('special'), previous.phrase.tags.includes('special') ? 46 : 24);
     else effects.letter(glyph);
   }
@@ -226,6 +247,7 @@ startForm.addEventListener('submit', (event) => {
 });
 replayButton.addEventListener('click', () => start(selectedMode));
 element('choose-mode-button').addEventListener('click', () => {
+  sound.stop();
   showView(readyView);
   startForm.querySelector<HTMLInputElement>('input:checked')?.focus();
 });
@@ -270,8 +292,11 @@ typingInput.addEventListener('focus', () => {
   if (game.snapshot().phase === 'playing') setFeedback();
 });
 document.addEventListener('visibilitychange', () => {
+  if (document.hidden) sound.suspend();
+  else sound.resume();
   if (game.snapshot().phase !== 'playing') return;
   game.tick(performance.now());
   if (game.snapshot().phase === 'finished') showResult();
   else renderStats();
 });
+window.addEventListener('pagehide', () => sound.stop());

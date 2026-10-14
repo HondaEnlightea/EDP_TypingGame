@@ -7,6 +7,7 @@ export class TypingEffects {
   private preview: HTMLElement | undefined;
   private previewTimer: ReturnType<typeof setTimeout> | undefined;
   private previewIndex = 0;
+  private readonly reels = new Map<HTMLElement, ReturnType<typeof setTimeout>[]>();
 
   constructor(private readonly toggle: HTMLButtonElement) {
     this.layer.className = 'sparkle-layer';
@@ -33,9 +34,34 @@ export class TypingEffects {
     clearTimeout(this.previewTimer);
     this.previewTimer = undefined;
     this.previewIndex = 0;
+    for (const glyph of this.reels.keys()) this.resolve(glyph);
     for (const animation of this.animations) animation.cancel();
     this.animations.clear();
     this.layer.replaceChildren();
+  }
+
+  resolve(glyph: HTMLElement): void {
+    for (const timer of this.reels.get(glyph) ?? []) clearTimeout(timer);
+    this.reels.delete(glyph);
+    glyph.classList.remove('reeling');
+    delete glyph.dataset.reel;
+  }
+
+  reveal(container: HTMLElement): void {
+    if (!this.enabled || this.motion.matches || document.hidden) return;
+    const glyphs = [...container.querySelectorAll<HTMLElement>('.glyph:not(.initial):not(.current):not(.typed)')];
+    const digits = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    glyphs.forEach((glyph, index) => {
+      // All letters settle within 150 ms, irrespective of prompt length.
+      const delay = index / Math.max(1, glyphs.length - 1) * 90;
+      glyph.classList.add('reeling');
+      glyph.dataset.reel = digits[(index * 7 + 3) % digits.length]!;
+      const timers = [
+        setTimeout(() => { glyph.dataset.reel = digits[(index * 11 + 9) % digits.length]!; }, delay + 30),
+        setTimeout(() => this.resolve(glyph), delay + 60),
+      ];
+      this.reels.set(glyph, timers);
+    });
   }
 
   setPreview(preview: HTMLElement): void {
