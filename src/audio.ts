@@ -12,9 +12,6 @@ export class GameAudio {
   private readonly active = new Map<HTMLAudioElement, number>();
   private serial = 0;
   private utterance: SpeechSynthesisUtterance | undefined;
-  private narration: HTMLAudioElement | undefined;
-  private narrationRevision = -1;
-  private readonly recordings = new Map<string, HTMLAudioElement>();
   private words = '';
   private revision = 0;
   private spokenRevision = -1;
@@ -26,16 +23,9 @@ export class GameAudio {
     speech: 'speechSynthesis' in window ? window.speechSynthesis : undefined,
     createUtterance: text => new SpeechSynthesisUtterance(text),
     hidden: () => document.hidden,
-  }, recordedPrompts: Readonly<Record<string, string>> = {}) {
+  }) {
     this.single = Array.from({ length: 4 }, () => this.createClip('Quiz-Ding_Dong04-4(Single).mp3', .3));
     this.short = this.createClip('Quiz-Ding_Dong04-1(Short).mp3', .4);
-    for (const [words, file] of Object.entries(recordedPrompts)) {
-      const clip = runtime.createClip(`${baseUrl}${file}`);
-      // Prioritize the opening prompt rather than decoding all 36 clips at once.
-      clip.preload = this.recordings.size === 0 ? 'auto' : 'none';
-      clip.volume = .8;
-      this.recordings.set(words, clip);
-    }
     runtime.speech?.addEventListener('voiceschanged', () => this.speak());
     runtime.speech?.getVoices();
   }
@@ -62,8 +52,6 @@ export class GameAudio {
     if (!this.playing) return;
     this.words = nextWords.join(' ');
     ++this.revision;
-    const nextNarration = this.recordings.get(this.words);
-    if (nextNarration) nextNarration.preload = 'auto';
     let clip = this.single.find(item => !this.active.has(item));
     if (!clip) {
       // Never restart a sounding success tone, even during very fast completions.
@@ -92,12 +80,6 @@ export class GameAudio {
   }
 
   suspend(): void {
-    if (this.narration) {
-      this.narration.onended = this.narration.onerror = null;
-      this.narration.pause();
-      this.narration.currentTime = 0;
-      this.narration = undefined;
-    }
     if (this.utterance) {
       this.utterance.onend = this.utterance.onerror = null;
       this.utterance = undefined;
@@ -120,33 +102,8 @@ export class GameAudio {
     } catch { failed(); }
   }
 
-  private speak(skipRecording = false): void {
-    if (!this.enabled || !this.playing || this.runtime.hidden() || this.spokenRevision === this.revision || this.utterance || this.narration || !this.words) return;
-    const clip = skipRecording ? undefined : this.recordings.get(this.words);
-    if (clip) {
-      const revision = this.revision;
-      this.narration = clip;
-      this.narrationRevision = revision;
-      clip.currentTime = 0;
-      const done = (): void => {
-        if (this.narration !== clip || this.narrationRevision !== revision) return;
-        this.narration = undefined;
-        clip.onended = clip.onerror = null;
-        this.spokenRevision = revision;
-        this.speak();
-      };
-      const failed = (): void => {
-        if (this.narration !== clip || this.narrationRevision !== revision) return;
-        this.narration = undefined;
-        clip.onended = clip.onerror = null;
-        clip.pause();
-        this.speak(this.revision === revision);
-      };
-      clip.onended = done;
-      clip.onerror = failed;
-      try { void clip.play().catch(failed); } catch { failed(); }
-      return;
-    }
+  private speak(): void {
+    if (!this.enabled || !this.playing || this.runtime.hidden() || this.spokenRevision === this.revision || this.utterance || !this.words) return;
     const speech = this.runtime.speech;
     if (!speech) return;
     const voices = speech.getVoices().filter(voice => voice.localService);

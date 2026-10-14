@@ -7,18 +7,13 @@ class Clip extends EventTarget {
   duration = .25;
   preload = '';
   volume = 1;
-  onended: HTMLAudioElement['onended'] = null;
-  onerror: HTMLAudioElement['onerror'] = null;
   play = vi.fn(async () => {});
   pause = vi.fn();
   constructor(readonly src: string) { super(); }
-  end(): void {
-    this.onended?.call(this as unknown as HTMLAudioElement, new Event('ended'));
-    this.dispatchEvent(new Event('ended'));
-  }
+  end(): void { this.dispatchEvent(new Event('ended')); }
 }
 
-function setup(recordings: Readonly<Record<string, string>> = {}) {
+function setup() {
   const clips: Clip[] = [];
   const spoken: SpeechSynthesisUtterance[] = [];
   const speech = new EventTarget() as EventTarget & {
@@ -44,7 +39,7 @@ function setup(recordings: Readonly<Record<string, string>> = {}) {
     createUtterance: text => ({ text } as SpeechSynthesisUtterance),
     hidden: () => hidden,
   };
-  const audio = new GameAudio('/assets/', runtime, recordings);
+  const audio = new GameAudio('/assets/', runtime);
   const short = clips.find(clip => clip.src.includes('(Short)'))!;
   const single = clips.filter(clip => clip.src.includes('(Single)'));
   return { audio, speech, spoken, clips, short, single, voices, hide: () => { hidden = true; } };
@@ -145,34 +140,12 @@ describe('効果音とお題の読み上げ', () => {
     expect(speech.cancel).toHaveBeenCalledTimes(1);
   });
 
-  it('事前生成した音声を即時再生し、終了後に最新のお題だけを読む', () => {
-    const { audio, clips, spoken } = setup({
-      'Egao Dango Pan': 'narration/a.wav',
-      'Ebi Daikon Ponzu': 'narration/b.wav',
-      'Ehon Donguri Panda': 'narration/c.wav',
-    });
-    const [first, second, latest] = clips.filter(clip => clip.src.includes('narration'));
-    audio.start(['Egao', 'Dango', 'Pan']);
-    expect(first!.play).toHaveBeenCalledTimes(1);
-    expect(spoken).toHaveLength(0);
-    audio.complete(['Ebi', 'Daikon', 'Ponzu']);
-    audio.complete(['Ehon', 'Donguri', 'Panda']);
-    expect(first!.pause).not.toHaveBeenCalled();
-    expect(second!.play).not.toHaveBeenCalled();
-    first!.end();
-    expect(latest!.play).toHaveBeenCalledTimes(1);
-    audio.finish();
-    expect(latest!.pause).toHaveBeenCalledTimes(1);
-    latest!.end();
-    expect(latest!.play).toHaveBeenCalledTimes(1);
-  });
-
-  it('読み上げファイルの再生拒否時には端末音声に切り替える', async () => {
-    const { audio, clips, spoken } = setup({ 'Egao Dango Pan': 'narration/a.wav' });
-    const recorded = clips.find(clip => clip.src.includes('narration'))!;
-    recorded.play.mockRejectedValueOnce(new Error('NotAllowedError'));
-    audio.start(['Egao', 'Dango', 'Pan']);
-    await vi.advanceTimersByTimeAsync(0);
-    expect(spoken[0]?.text).toBe('Egao Dango Pan');
+  it('問題集に追加する新しい3単語も、渡された文字列のまま読む', () => {
+    const { audio, spoken } = setup();
+    audio.start(['Emerald', 'Delta', 'Phoenix']);
+    expect(spoken[0]?.text).toBe('Emerald Delta Phoenix');
+    audio.complete(['Eclipse', 'Dynamo', 'Prism']);
+    endReading(spoken[0]!);
+    expect(spoken[1]?.text).toBe('Eclipse Dynamo Prism');
   });
 });

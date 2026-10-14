@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import narrationData from '../src/data/narration.json' with { type: 'json' };
 
 test('EDPを固定し、短い切り替え中にも入力できる', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-10-14T00:00:00Z') });
@@ -35,27 +34,56 @@ test('EDPを固定し、短い切り替え中にも入力できる', async ({ pa
 });
 
 test('3単語完成でSingleを鳴らし、読み上げは即時に始め、重なっても中断しない', async ({ page }) => {
-  await page.addInitScript((recordings: Record<string, string>) => {
-    type Entry = { kind: 'effect' | 'speech' | 'pause'; text: string; overlap?: boolean; at: number };
+  await page.addInitScript(() => {
+    type Entry = { kind: 'effect' | 'speech' | 'cancel' | 'pause'; text: string; overlap?: boolean; at: number };
     const log: Entry[] = [];
+    Object.defineProperty(window, 'SpeechSynthesisUtterance', { value: class {
+      voice = null;
+      lang = '';
+      rate = 1;
+      volume = 1;
+      onend = null;
+      onerror = null;
+      constructor(readonly text: string) {}
+    } });
     (window as Window & { audioLog?: Entry[] }).audioLog = log;
     const active = new Set<HTMLMediaElement>();
-    const caption = (url: string): string | undefined => Object.entries(recordings).find(([, file]) => new URL(url).pathname.endsWith(file))?.[0];
+    let talking = false;
+    let utterance: SpeechSynthesisUtterance | undefined;
     const originalPlay = HTMLMediaElement.prototype.play;
     const originalPause = HTMLMediaElement.prototype.pause;
     HTMLMediaElement.prototype.play = function () {
-      const text = caption(this.src);
-      log.push({ kind: text ? 'speech' : 'effect', text: text ?? this.src, overlap: active.size > 0, at: performance.now() });
+      log.push({ kind: 'effect', text: this.src, overlap: talking, at: performance.now() });
       active.add(this);
       this.addEventListener('ended', () => active.delete(this), { once: true });
       return originalPlay.call(this).catch(error => { active.delete(this); throw error; });
     };
     HTMLMediaElement.prototype.pause = function () {
-      log.push({ kind: 'pause', text: caption(this.src) ?? this.src, at: performance.now() });
+      log.push({ kind: 'pause', text: this.src, at: performance.now() });
       active.delete(this);
       originalPause.call(this);
     };
-  }, narrationData);
+    Object.defineProperty(window, 'speechSynthesis', { value: {
+      getVoices: () => [{ lang: 'en-US', localService: true, default: true, name: 'Test local voice' }],
+      addEventListener: () => {},
+      speak: (next: SpeechSynthesisUtterance) => {
+        talking = true;
+        utterance = next;
+        log.push({ kind: 'speech', text: next.text, overlap: active.size > 0, at: performance.now() });
+        setTimeout(() => {
+          if (utterance !== next) return;
+          talking = false;
+          utterance = undefined;
+          next.onend?.call(next, {} as SpeechSynthesisEvent);
+        }, 500);
+      },
+      cancel: () => {
+        talking = false;
+        log.push({ kind: 'cancel', text: utterance?.text ?? '', at: performance.now() });
+        utterance = undefined;
+      },
+    } });
+  });
   await page.goto('/');
   await page.getByRole('button', { name: 'はじめる' }).click();
   const logs = () => page.evaluate(() => (window as Window & { audioLog?: { kind: string; text: string; overlap?: boolean; at: number }[] }).audioLog!);
@@ -104,38 +132,4 @@ test('配置された2つのMP3をブラウザで実際にデコードできる'
   });
   for (const duration of durations) expect(duration).toBeGreaterThan(0);
   console.log(`MP3の長さ: Single=${durations[0]?.toFixed(3)}秒 / Short=${durations[1]?.toFixed(3)}秒`);
-});
-
-test('36問のローカル読み上げをデコードでき、出題直後に再生が始まる', async ({ page }) => {
-  await page.addInitScript(() => {
-    (window as Window & { narrationDelay?: number }).narrationDelay = -1;
-    const original = HTMLMediaElement.prototype.play;
-    HTMLMediaElement.prototype.play = function () {
-      if (this.src.includes('/narration/')) {
-        const requested = performance.now();
-        this.addEventListener('playing', () => { (window as Window & { narrationDelay?: number }).narrationDelay = performance.now() - requested; }, { once: true });
-      }
-      return original.call(this);
-    };
-  });
-  await page.goto('/');
-  await page.getByRole('button', { name: 'はじめる' }).click();
-  await expect.poll(() => page.evaluate(() => (window as Window & { narrationDelay?: number }).narrationDelay ?? -1)).toBeGreaterThanOrEqual(0);
-  const delay = await page.evaluate(() => (window as Window & { narrationDelay?: number }).narrationDelay!);
-  // Output-device initialization varies; immediate play() ordering is checked above.
-  expect(delay).toBeLessThan(1000);
-  console.log(`ローカル読み上げの再生開始: ${delay.toFixed(0)}ms`);
-  await page.getByRole('button', { name: '終了' }).click();
-  const durations = await page.evaluate(async recordings => {
-    const context = new AudioContext();
-    try {
-      return await Promise.all(Object.values(recordings).map(async path => {
-        const response = await fetch(new URL(path, location.href));
-        if (!response.ok) throw new Error(path);
-        return (await context.decodeAudioData(await response.arrayBuffer())).duration;
-      }));
-    } finally { await context.close(); }
-  }, narrationData);
-  expect(durations).toHaveLength(36);
-  expect(durations.every(duration => duration > .1)).toBe(true);
 });

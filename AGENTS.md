@@ -5,6 +5,7 @@
 - Design uses blue and white with restrained digital effects; keep prompts readable.
 - Prioritize refinement: remove redundant copy and decoration, and emphasize the prompt and typing. Show detailed instructions and secondary statistics only on demand.
 - Every prompt has three alphabetic words with initials E, D, P in that order.
+- Narrate the current prompt's words dynamically. Do not require prerecorded prompt audio or regeneration when the question data changes.
 - Input joins the words without spaces and ignores letter case. A wrong letter does not advance the cursor.
 - Keep game rules independent of the DOM. Verify timing boundaries and replay resets.
 - Commit messages use an English word, a full-width colon, and Japanese, e.g. `Add：タイピング試作を実装`.

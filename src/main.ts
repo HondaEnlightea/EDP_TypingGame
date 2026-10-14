@@ -1,6 +1,5 @@
 import './style.css';
 import phraseData from './data/phrases.json';
-import narrationData from './data/narration.json';
 import { TypingGame } from './game';
 import type { Mode } from './game';
 import { inputText, parsePhrases } from './phrases';
@@ -99,7 +98,7 @@ const timeValue = element('time-value');
 const scoreValue = element('score-value');
 const replayButton = element<HTMLButtonElement>('replay-button');
 const effects = new TypingEffects(element<HTMLButtonElement>('effects-toggle'));
-const sound = new GameAudio(import.meta.env.BASE_URL, undefined, narrationData);
+const sound = new GameAudio(import.meta.env.BASE_URL);
 let soundEnabled = true;
 element('sound-toggle').addEventListener('click', () => {
   soundEnabled = !soundEnabled;
