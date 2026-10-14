@@ -1,5 +1,6 @@
 import './style.css';
 import phraseData from './data/phrases.json';
+import narrationData from './data/narration.json';
 import { TypingGame } from './game';
 import type { Mode } from './game';
 import { inputText, parsePhrases } from './phrases';
@@ -43,7 +44,7 @@ app.innerHTML = `
             <li>スペース不要。ミスしても、正しい文字を打てば続きます。</li>
             <li>60秒モードは開始と同時に計測。画面を離れても時間は進みます。</li>
             <li>練習モードは時間制限なし。「終了」で結果を見られます。</li>
-            <li>音は画面上部で切り替え。得点時は効果音を優先し、落ち着いてからお題の3単語を読みます。読み上げは端末の音声を使用します。</li>
+            <li>音は画面上部で切り替え。3単語の完成時に成功音が鳴り、出題直後にお題を読みます。読み上げは端末の音声を使用します。</li>
           </ul>
         </details>
       </section>
@@ -98,7 +99,7 @@ const timeValue = element('time-value');
 const scoreValue = element('score-value');
 const replayButton = element<HTMLButtonElement>('replay-button');
 const effects = new TypingEffects(element<HTMLButtonElement>('effects-toggle'));
-const sound = new GameAudio(import.meta.env.BASE_URL);
+const sound = new GameAudio(import.meta.env.BASE_URL, undefined, narrationData);
 let soundEnabled = true;
 element('sound-toggle').addEventListener('click', () => {
   soundEnabled = !soundEnabled;
@@ -234,8 +235,7 @@ function acceptLetter(key: string): void {
     setFeedback(`次は「${inputText(state.phrase)[state.position]}」`, true);
   } else {
     setFeedback();
-    sound.score();
-    if (outcome === 'completed') sound.prompt(game.snapshot().phrase.words);
+    if (outcome === 'completed') sound.complete(game.snapshot().phrase.words);
     if (outcome === 'completed') effects.burst(rect, previous.phrase.tags.includes('special'), previous.phrase.tags.includes('special') ? 46 : 24);
     else effects.letter(glyph);
   }

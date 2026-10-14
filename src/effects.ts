@@ -7,7 +7,7 @@ export class TypingEffects {
   private preview: HTMLElement | undefined;
   private previewTimer: ReturnType<typeof setTimeout> | undefined;
   private previewIndex = 0;
-  private readonly reels = new Map<HTMLElement, ReturnType<typeof setTimeout>[]>();
+  private readonly reels = new Map<HTMLElement, { timer?: ReturnType<typeof setTimeout>; animation?: Animation; window: HTMLElement }>();
 
   constructor(private readonly toggle: HTMLButtonElement) {
     this.layer.className = 'sparkle-layer';
@@ -41,26 +41,59 @@ export class TypingEffects {
   }
 
   resolve(glyph: HTMLElement): void {
-    for (const timer of this.reels.get(glyph) ?? []) clearTimeout(timer);
+    const reel = this.reels.get(glyph);
+    clearTimeout(reel?.timer);
+    reel?.animation?.cancel();
+    reel?.window.remove();
     this.reels.delete(glyph);
     glyph.classList.remove('reeling');
-    delete glyph.dataset.reel;
   }
 
   reveal(container: HTMLElement): void {
     if (!this.enabled || this.motion.matches || document.hidden) return;
     const glyphs = [...container.querySelectorAll<HTMLElement>('.glyph:not(.initial):not(.current):not(.typed)')];
-    const digits = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const symbols = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     glyphs.forEach((glyph, index) => {
-      // All letters settle within 150 ms, irrespective of prompt length.
-      const delay = index / Math.max(1, glyphs.length - 1) * 90;
+      this.resolve(glyph);
+      const target = glyph.textContent ?? '';
+      // Repeated full-height rolls, with left-to-right settling within 300 ms.
+      const duration = 160 + index / Math.max(1, glyphs.length - 1) * 140;
+      const window = document.createElement('span');
+      window.className = 'reel-window';
+      window.setAttribute('aria-hidden', 'true');
+      const strip = document.createElement('span');
+      strip.className = 'reel-strip';
+      const cells = Array.from({ length: 2 }, () => {
+        const cell = document.createElement('span');
+        cell.className = 'reel-cell';
+        strip.append(cell);
+        return cell;
+      });
+      window.append(strip);
+      glyph.append(window);
       glyph.classList.add('reeling');
-      glyph.dataset.reel = digits[(index * 7 + 3) % digits.length]!;
-      const timers = [
-        setTimeout(() => { glyph.dataset.reel = digits[(index * 11 + 9) % digits.length]!; }, delay + 30),
-        setTimeout(() => this.resolve(glyph), delay + 60),
-      ];
-      this.reels.set(glyph, timers);
+      const state: { timer?: ReturnType<typeof setTimeout>; animation?: Animation; window: HTMLElement } = { window };
+      this.reels.set(glyph, state);
+      const steps = Math.ceil(duration / 55);
+      const stepMs = duration / steps;
+      let previous = symbols[(index * 17 + 3) % symbols.length]!;
+      const spin = (step: number): void => {
+        if (this.reels.get(glyph) !== state) return;
+        state.animation?.cancel();
+        const next = step === steps - 1 ? target : symbols[(index * 17 + step * 11 + 9) % symbols.length]!;
+        cells[0]!.dataset.symbol = previous;
+        cells[1]!.dataset.symbol = next;
+        previous = next;
+        state.animation = strip.animate([
+          { transform: 'translateY(0)' },
+          { transform: 'translateY(-50%)' },
+        ], { duration: stepMs, easing: step === steps - 1 ? 'cubic-bezier(.16,.65,.3,1)' : 'linear', fill: 'forwards' });
+        state.timer = setTimeout(() => {
+          if (step === steps - 1) this.resolve(glyph);
+          else spin(step + 1);
+        }, stepMs);
+      };
+      spin(0);
     });
   }
 

@@ -76,8 +76,10 @@ details summary { cursor: pointer; font-size: 12px; color: var(--muted); width: 
 .typing-surface .glyph { color: #53627d; }
 .typing-surface .glyph { position: relative; display: inline-block; }
 .typing-surface .reeling { color: transparent !important; text-shadow: none; }
-.typing-surface .reeling::after { content: attr(data-reel); position: absolute; inset: 0; color: #008eac; text-shadow: 0 0 10px #23dcff60; animation: reel-step 30ms linear infinite; }
-@keyframes reel-step { from { transform: translateY(-.13em); opacity: .65; } to { transform: translateY(.07em); opacity: 1; } }
+.reel-window { position: absolute; inset: 0 0 8px; overflow: hidden; pointer-events: none; color: #008eac; text-shadow: 0 0 8px #23dcff40; }
+.reel-strip { display: block; }
+.reel-cell { display: block; height: 1.7em; line-height: 1.7; }
+.reel-cell::before { content: attr(data-symbol); }
 .typing-surface .initial { color: var(--blue); }
 .typing-surface .typed { color: #547cba; text-shadow: 0 0 15px #3a9cff25; }
 .typing-surface .current { color: #182348; background: #ebefff; border-bottom-color: #9daee7; }
