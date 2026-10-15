@@ -1,14 +1,15 @@
 import './style.css';
 import phraseData from './data/phrases.json';
+import slotWordData from './data/slot-words.json';
 import { TypingGame } from './game';
 import type { Mode } from './game';
-import { inputText, parsePhrases } from './phrases';
+import { inputText, parsePhrases, parseWordPools } from './phrases';
 import type { Phrase } from './phrases';
 import { TypingEffects } from './effects';
 import { GameAudio } from './audio';
 
 const phrases = parsePhrases(phraseData);
-const game = new TypingGame(phrases);
+const game = new TypingGame(phrases, Math.random, parseWordPools(slotWordData));
 const logoUrl = `${import.meta.env.BASE_URL}edp-logo.png`;
 const app = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -119,7 +120,6 @@ function buildWords(container: HTMLElement, phrase: Phrase): void {
   container.replaceChildren();
   container.style.setProperty('--prompt-length', String(inputText(phrase).length));
   container.setAttribute('aria-label', phrase.words.join(' '));
-  container.classList.toggle('is-special', phrase.tags.includes('special'));
   for (const word of phrase.words) {
     const group = document.createElement('span');
     group.className = 'prompt-word';
@@ -160,6 +160,7 @@ function renderPrompt(): void {
     renderedPhrase = phrase.id;
     buildWords(wordDisplay, phrase);
     element('meaning').textContent = phrase.meaningJa;
+    element('meaning').hidden = !phrase.meaningJa;
   }
   wordDisplay.querySelectorAll<HTMLElement>('.glyph').forEach((span, i) => {
     span.classList.toggle('typed', i < position);
@@ -196,7 +197,7 @@ function showResult(): void {
   resultView.querySelector('details')!.open = false;
   showView(resultView);
   replayButton.focus();
-  if (state.score > 0) effects.burst(element('result-score').getBoundingClientRect(), false, 16);
+  if (state.score > 0) effects.burst(element('result-score').getBoundingClientRect(), 16);
 }
 
 function start(mode: Mode): void {
@@ -235,7 +236,7 @@ function acceptLetter(key: string): void {
   } else {
     setFeedback();
     if (outcome === 'completed') sound.complete(game.snapshot().phrase.words);
-    if (outcome === 'completed') effects.burst(rect, previous.phrase.tags.includes('special'), previous.phrase.tags.includes('special') ? 46 : 24);
+    if (outcome === 'completed') effects.burst(rect);
     else effects.letter(glyph);
   }
 }

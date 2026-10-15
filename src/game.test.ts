@@ -6,12 +6,12 @@ import data from './data/phrases.json';
 const phrases = parsePhrases(data);
 
 describe('タイピングの進行と採点', () => {
-  it('開始前の入力を無視し、短いローマ字のお題から始める', () => {
+  it('開始前の入力を無視し、ElectricDataProcessingから始める', () => {
     const game = new TypingGame(phrases);
     expect(game.type('e', 0)).toBe('ignored');
     game.start('timed', 1000);
     expect(game.snapshot()).toMatchObject({ phase: 'playing', score: 0, accuracy: null, remainingMs: 60_000 });
-    expect(inputText(game.snapshot().phrase)).toBe('egaodangopan');
+    expect(inputText(game.snapshot().phrase)).toBe('electricdataprocessing');
   });
 
   it('大文字を受け付け、ミスで進めず、正確率とコンボを計算する', () => {
@@ -20,8 +20,8 @@ describe('タイピングの進行と採点', () => {
     expect(game.type('E', 10)).toBe('correct');
     expect(game.type('x', 20)).toBe('miss');
     expect(game.snapshot()).toMatchObject({ score: 1, misses: 1, position: 1, combo: 0, maxCombo: 1, accuracy: 50 });
-    game.type('G', 30);
-    game.type('A', 40);
+    game.type('L', 30);
+    game.type('E', 40);
     expect(game.snapshot()).toMatchObject({ score: 3, misses: 1, combo: 2, maxCombo: 2, accuracy: 75 });
   });
 
@@ -34,14 +34,14 @@ describe('タイピングの進行と採点', () => {
     expect(game.snapshot()).toMatchObject({ position: 0, score: 0, misses: 0, accuracy: null });
   });
 
-  it('最後の文字で次のお題に進み、1巡内で重複しない', () => {
+  it('最後の文字で進み、6問ごとの1問目と4問目を固定する', () => {
     const game = new TypingGame(phrases, () => 0.3);
     game.start('practice', 0);
-    const seen = new Set<string>();
-    for (let i = 0; i < phrases.length; i++) {
+    for (let i = 0; i < 18; i++) {
       const phrase = game.snapshot().phrase;
-      expect(seen.has(phrase.id)).toBe(false);
-      seen.add(phrase.id);
+      if (i % 6 === 0) expect(phrase.words).toEqual(['Electric', 'Data', 'Processing']);
+      else if (i % 6 === 3) expect(phrase.words).toEqual(['Echigo', 'Dangerous', 'People']);
+      else expect(phrase.id).toBe(`random-${i}`);
       const text = inputText(phrase);
       for (const [index, key] of [...text].entries()) {
         expect(game.type(key, 100)).toBe(index === text.length - 1 ? 'completed' : 'correct');
@@ -49,7 +49,7 @@ describe('タイピングの進行と採点', () => {
       expect(game.snapshot().position).toBe(0);
       expect(game.snapshot().phrase.id).not.toBe(phrase.id);
     }
-    expect(game.snapshot().completed).toBe(phrases.length);
+    expect(game.snapshot().completed).toBe(18);
   });
 
   it('終了直前の文字は加点し、終了時刻ちょうどの文字は加点しない', () => {
@@ -89,7 +89,7 @@ describe('タイピングの進行と採点', () => {
     game.finish(3000);
     game.start('timed', 4000);
     expect(game.snapshot()).toMatchObject({ phase: 'playing', mode: 'timed', score: 0, misses: 0, completed: 0, position: 0, combo: 0, maxCombo: 0, elapsedMs: 0, remainingMs: 60_000, accuracy: null });
-    expect(game.snapshot().phrase.id).toBe(phrases[0]!.id);
+    expect(inputText(game.snapshot().phrase)).toBe('electricdataprocessing');
     expect(game.type('E', 4001)).toBe('correct');
   });
 });

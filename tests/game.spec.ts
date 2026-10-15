@@ -13,21 +13,20 @@ test('開始・ミス・お題の完成・結果・再プレイを一通り遊�
   await input.press('x');
   await expect(input).toHaveValue('');
   await expect(page.getByRole('status')).toContainText('次は「e」');
-  await input.pressSequentially('EGAO');
-  await expect(input).toHaveValue('egao');
+  await input.pressSequentially('ELEC');
+  await expect(input).toHaveValue('elec');
   await input.press('Space');
   await input.press('Backspace');
-  await expect(input).toHaveValue('egao');
+  await expect(input).toHaveValue('elec');
   await page.screenshot({ path: 'test-results/preview-playing.png', fullPage: true });
-  await input.pressSequentially('DangoPan');
-  await expect(page.locator('#score-value')).toHaveText('12');
+  await input.pressSequentially('tricDataProcessing');
+  await expect(page.locator('#score-value')).toHaveText('22');
   await expect(input).toHaveValue('');
-  await expect(page.locator('#word-display')).not.toHaveText(/Egao.*Dango.*Pan/);
   await page.getByRole('button', { name: '終了' }).click();
-  await expect(page.locator('#result-score')).toHaveText('12');
+  await expect(page.locator('#result-score')).toHaveText('22');
   await expect(page.locator('#result-completed')).toHaveText('1 組');
   await expect(page.locator('#result-misses')).toHaveText('1');
-  await expect(page.locator('#result-accuracy')).toHaveText('92.3%');
+  await expect(page.locator('#result-accuracy')).toHaveText('95.7%');
   await page.screenshot({ path: 'test-results/preview-result.png', fullPage: true });
   const replay = page.getByRole('button', { name: 'もう一度' });
   await expect(replay).toBeFocused();
@@ -39,39 +38,57 @@ test('開始・ミス・お題の完成・結果・再プレイを一通り遊�
   expect(errors).toEqual([]);
 });
 
-test('完成の演出中も入力でき、オフと再プレイで粒子を消せる', async ({ page }) => {
-  await page.addInitScript(() => {
-    const random = Math.random;
-    let calls = 0;
-    // Make the first shuffle put a special prompt next; retain natural particle positions.
-    Math.random = () => calls++ < 34 ? 24 / 35 : random();
-  });
+test('固定問題も通常と同じ青い演出で、完成中も入力できる', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('radio', { name: '練習' }).check();
   await page.getByRole('button', { name: 'はじめる' }).click();
   const input = page.getByRole('textbox');
-  await input.pressSequentially('EgaoDangoPan');
+  await expect(page.locator('#word-display')).toHaveText('ElectricDataProcessing');
+  await expect(page.locator('#word-display .prompt-word').first()).toHaveCSS('background-image', 'none');
+  await input.pressSequentially('ElectricDataProcessing');
   expect(await page.locator('.sparkle').count()).toBeGreaterThan(0);
-  await expect(page.locator('#word-display')).toHaveClass(/is-special/);
   const next = (await page.locator('#word-display').innerText()).toLowerCase();
   await input.press(next[0]!);
-  await expect(page.locator('#score-value')).toHaveText('13');
-  await expect.poll(() => page.locator('.sparkle').count()).toBe(0);
-  await page.screenshot({ path: 'test-results/preview-special.png', fullPage: true });
-  await input.pressSequentially(next.slice(1));
-  expect(await page.locator('.sparkle').evaluateAll(nodes => new Set(nodes.map(node => (node as HTMLElement).style.color)).size)).toBeGreaterThan(20);
-  await page.screenshot({ path: 'test-results/preview-sparkles.png', fullPage: true });
+  await expect(page.locator('#score-value')).toHaveText('23');
   await page.getByRole('button', { name: '演出をオフにする' }).click();
   await expect(page.locator('.sparkle')).toHaveCount(0);
   await expect(input).toBeFocused();
-  await input.pressSequentially((await page.locator('#word-display').innerText()).toLowerCase());
+  await input.pressSequentially(next.slice(1));
   await expect(page.locator('.sparkle')).toHaveCount(0);
   await page.getByRole('button', { name: '演出をオンにする' }).click();
+  await input.pressSequentially((await page.locator('#word-display').innerText()).toLowerCase());
+  await expect(page.locator('#word-display')).toHaveText('EchigoDangerousPeople');
+  await expect.poll(() => page.locator('.sparkle').count()).toBe(0);
+  await expect(page.locator('#word-display .prompt-word').last()).toHaveCSS('background-image', 'none');
+  await expect(page.locator('#word-display .glyph').last()).toHaveCSS('color', 'rgb(83, 98, 125)');
+  await page.screenshot({ path: 'test-results/preview-fixed-echigo.png', fullPage: true });
+  await input.pressSequentially('EchigoDangerousPeople');
+  await expect(page.locator('.sparkle')).toHaveCount(24);
+  await page.screenshot({ path: 'test-results/preview-sparkles.png', fullPage: true });
   await page.getByRole('button', { name: '終了' }).click();
   await page.getByRole('button', { name: 'もう一度' }).click();
   await expect(page.locator('.sparkle')).toHaveCount(0);
   await expect(input).toHaveValue('');
   await expect(page.locator('#score-value')).toHaveText('0');
+});
+
+test('6問ループを繰り返し、再プレイは1問目に戻る', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '音をオフにする' }).click();
+  await page.getByRole('radio', { name: '練習' }).check();
+  await page.getByRole('button', { name: 'はじめる' }).click();
+  const input = page.getByRole('textbox');
+  for (let i = 0; i < 13; i++) {
+    const phrase = await page.locator('#word-display').getAttribute('aria-label');
+    if (i % 6 === 0) expect(phrase).toBe('Electric Data Processing');
+    else if (i % 6 === 3) expect(phrase).toBe('Echigo Dangerous People');
+    else expect(phrase).toMatch(/^E[a-z]+ D[a-z]+ P[a-z]+$/i);
+    await input.pressSequentially(phrase!.replaceAll(' ', ''));
+  }
+  await page.getByRole('button', { name: '終了' }).click();
+  await expect(page.locator('#result-completed')).toHaveText('13 組');
+  await page.getByRole('button', { name: 'もう一度' }).click();
+  await expect(page.locator('#word-display')).toHaveText('ElectricDataProcessing');
 });
 
 test('動きを抑える設定では粒子や繰り返すアニメーションを停止する', async ({ page }) => {
@@ -80,12 +97,12 @@ test('動きを抑える設定では粒子や繰り返すアニメーション�
   await expect(page.locator('#preview-display .prompt-word').first()).toHaveCSS('animation-name', 'none');
   expect(await page.locator('#preview-display').evaluate(el => el.getAnimations({ subtree: true }).length)).toBe(0);
   await page.getByRole('button', { name: 'はじめる' }).click();
-  await page.getByRole('textbox').pressSequentially('EgaoDangoPan');
+  await page.getByRole('textbox').pressSequentially('ElectricDataProcessing');
   await expect(page.locator('.sparkle')).toHaveCount(0);
-  await expect(page.locator('#score-value')).toHaveText('12');
+  await expect(page.locator('#score-value')).toHaveText('22');
   await page.getByRole('button', { name: '終了' }).click();
   await expect(page.locator('.sparkle')).toHaveCount(0);
-  await expect(page.locator('#result-score')).toHaveText('12');
+  await expect(page.locator('#result-score')).toHaveText('22');
 });
 
 test('見本を左から一文字ずつポップし、演出オフと開始時に停止する', async ({ page }) => {
@@ -156,7 +173,7 @@ test('練習モードに時間制限はなく、終了後にモードを選び�
   await page.clock.fastForward(90_000);
   await expect(page.locator('#game-view')).toBeVisible();
   await expect(page.locator('#time-label')).toHaveText('経過時間');
-  await page.getByRole('textbox').pressSequentially('egaoda');
+  await page.getByRole('textbox').pressSequentially('electr');
   await page.getByRole('button', { name: '終了' }).click();
   await expect(page.locator('#result-score')).toHaveText('6');
   await page.getByRole('button', { name: 'もう一度' }).click();
@@ -208,7 +225,7 @@ test('外部素材への通信なしで起動し、狭い画面でも横には�
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: 'test-results/preview-mobile.png', fullPage: true });
   await page.getByRole('button', { name: 'はじめる' }).click();
-  await page.getByRole('textbox').pressSequentially('EgaoDangoPan');
+  await page.getByRole('textbox').pressSequentially('ElectricDataProcessing');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: '終了' }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

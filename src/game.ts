@@ -1,5 +1,6 @@
 import { inputText } from './phrases';
-import type { Phrase } from './phrases';
+import type { Phrase, WordPools } from './phrases';
+import { buildWordPools, ELECTRIC_PROMPT, generatePrompt } from './prompts';
 
 export type Mode = 'timed' | 'practice';
 export type Phase = 'ready' | 'playing' | 'finished';
@@ -33,12 +34,11 @@ export class TypingGame {
   private maxCombo = 0;
   private startedAt = 0;
   private elapsedMs = 0;
-  private deck: Phrase[] = [];
+  private readonly pools: WordPools;
 
-  constructor(private readonly phrases: readonly Phrase[], private readonly random: () => number = Math.random) {
-    const first = phrases[0];
-    if (!first) throw new Error('1件以上のお題が必要です。');
-    this.phrase = first;
+  constructor(phrases: readonly Phrase[], private readonly random: () => number = Math.random, additionalWords?: WordPools) {
+    this.pools = buildWordPools(phrases, additionalWords);
+    this.phrase = ELECTRIC_PROMPT;
   }
 
   start(mode: Mode, now: number): void {
@@ -47,9 +47,7 @@ export class TypingGame {
     this.position = this.score = this.misses = this.completed = this.combo = this.maxCombo = 0;
     this.startedAt = now;
     this.elapsedMs = 0;
-    // Start with a short romaji prompt, then shuffle the remaining phrases.
-    this.phrase = this.phrases[0]!;
-    this.deck = this.shuffle(this.phrases.slice(1));
+    this.phrase = ELECTRIC_PROMPT;
   }
 
   tick(now: number): void {
@@ -77,7 +75,7 @@ export class TypingGame {
     if (this.position === inputText(this.phrase).length) {
       this.completed += 1;
       this.position = 0;
-      this.phrase = this.nextPhrase();
+      this.phrase = generatePrompt(this.completed, this.pools, this.random);
       return 'completed';
     }
     return 'correct';
@@ -101,23 +99,4 @@ export class TypingGame {
     };
   }
 
-  private shuffle(source: readonly Phrase[]): Phrase[] {
-    const result = [...source];
-    for (let i = result.length - 1; i > 0; i--) {
-      const j = Math.floor(this.random() * (i + 1));
-      [result[i], result[j]] = [result[j]!, result[i]!];
-    }
-    return result;
-  }
-
-  private nextPhrase(): Phrase {
-    if (this.deck.length === 0) {
-      this.deck = this.shuffle(this.phrases);
-      // Avoid repeating the last phrase across a deck boundary.
-      if (this.deck.length > 1 && this.deck[this.deck.length - 1]?.id === this.phrase.id) {
-        [this.deck[0], this.deck[this.deck.length - 1]] = [this.deck[this.deck.length - 1]!, this.deck[0]!];
-      }
-    }
-    return this.deck.pop()!;
-  }
 }

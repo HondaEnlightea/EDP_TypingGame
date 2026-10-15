@@ -5,6 +5,28 @@ export interface Phrase {
   readonly tags: readonly string[];
 }
 
+export interface WordPools {
+  readonly E: readonly string[];
+  readonly D: readonly string[];
+  readonly P: readonly string[];
+}
+
+export function parseWordPools(value: unknown): WordPools {
+  if (!isRecord(value) || value.version !== 1 || !isRecord(value.words)) {
+    throw new Error('単語集にはversion: 1とE・D・Pの単語リストが必要です。');
+  }
+  const result = { E: [], D: [], P: [] } as { E: string[]; D: string[]; P: string[] };
+  for (const initial of ['E', 'D', 'P'] as const) {
+    const words = value.words[initial];
+    if (!Array.isArray(words) || words.length === 0 || !words.every((word: unknown) =>
+      typeof word === 'string' && /^[a-z]+$/i.test(word) && word[0]?.toUpperCase() === initial)) {
+      throw new Error(`${initial}: 指定の頭文字で始まる英字の単語を1つ以上登録してください。`);
+    }
+    result[initial] = [...words] as string[];
+  }
+  return result;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

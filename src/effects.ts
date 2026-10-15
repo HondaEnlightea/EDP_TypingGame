@@ -161,14 +161,14 @@ export class TypingEffects {
     ], 280);
   }
 
-  burst(rect: DOMRect, rainbow = false, count = 24): void {
+  burst(rect: DOMRect, count = 24): void {
     if (!this.enabled || this.motion.matches || document.hidden) return;
     // Bound simultaneous work even during very fast typing.
     const available = Math.min(count, 64 - this.layer.childElementCount);
     for (let i = 0; i < available; i++) {
       const particle = document.createElement('i');
       particle.className = i % 3 === 0 ? 'sparkle mote' : 'sparkle';
-      const hue = rainbow ? (i / count * 360 + 205) % 360 : 195 + Math.random() * 45;
+      const hue = 195 + Math.random() * 45;
       particle.style.color = `hsl(${hue} 90% 56%)`;
       const size = 4 + Math.random() * 8;
       particle.style.width = particle.style.height = `${size}px`;
