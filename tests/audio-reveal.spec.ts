@@ -33,7 +33,7 @@ test('EDPを固定し、短い切り替え中にも入力できる', async ({ pa
   await expect(page.locator('#word-display .reeling')).toHaveCount(0);
 });
 
-test('指定の2組は英語とShort、通常は日本語とSingleに切り替え、音を中断しない', async ({ page }) => {
+test('指定の2組は1文字ごとにSingleと完成時にShortを鳴らし、読み上げも中断しない', async ({ page }) => {
   await page.addInitScript(() => {
     type Entry = { kind: 'effect' | 'speech' | 'cancel' | 'pause'; text: string; overlap?: boolean; at: number; lang?: string; voice?: string | null };
     const log: Entry[] = [];
@@ -97,27 +97,32 @@ test('指定の2組は英語とShort、通常は日本語とSingleに切り替�
   expect(opening.find(entry => entry.kind === 'speech')!.at - opening.find(entry => entry.kind === 'effect')!.at).toBeLessThan(60);
   const input = page.getByRole('textbox');
   await input.press('x');
-  await input.pressSequentially('ElectricDataProcessin');
+  await input.press('Space');
+  await input.dispatchEvent('keydown', { key: 'e', repeat: true });
   expect((await logs()).filter(entry => entry.kind === 'effect' && entry.text.includes('Single'))).toHaveLength(0);
+  await input.pressSequentially('ElectricDataProcessin');
+  expect((await logs()).filter(entry => entry.kind === 'effect' && entry.text.includes('Single'))).toHaveLength(21);
   expect((await logs()).filter(entry => entry.kind === 'cancel')).toHaveLength(0);
   await input.press('g');
   const next = await page.locator('#word-display').getAttribute('aria-label');
   await expect.poll(async () => (await logs()).some(entry => entry.kind === 'speech' && entry.text === next)).toBe(true);
   let log = await logs();
-  expect(log.filter(entry => entry.kind === 'effect' && entry.text.includes('Single'))).toHaveLength(0);
+  expect(log.filter(entry => entry.kind === 'effect' && entry.text.includes('Single'))).toHaveLength(22);
   expect(log.filter(entry => entry.kind === 'effect' && entry.text.includes('Short'))).toHaveLength(2);
   const nextEnglish = ['Electric Data Processing', 'Echigo Dangerous People'].includes(next!);
   expect(log.filter(entry => entry.kind === 'speech').at(-1)).toMatchObject({ lang: nextEnglish ? 'en-US' : 'ja-JP', voice: nextEnglish ? 'Microsoft Zira' : 'Test Japanese' });
   expect(log.filter(entry => entry.kind === 'cancel')).toHaveLength(0);
   expect(log.filter(entry => entry.kind === 'pause')).toHaveLength(0);
   expect(log.some(entry => entry.overlap)).toBe(true);
+  await input.press('e');
+  expect((await logs()).filter(entry => entry.kind === 'effect' && entry.text.includes('Single'))).toHaveLength(22 + (nextEnglish ? 1 : 0));
   await page.getByRole('button', { name: '音をオフにする' }).click();
   await expect(input).toBeFocused();
   const effectsBefore = (await logs()).filter(entry => entry.kind === 'effect').length;
-  await input.press('e');
+  await input.press(next!.replaceAll(' ', '')[1]!);
   expect((await logs()).filter(entry => entry.kind === 'effect')).toHaveLength(effectsBefore);
   await page.getByRole('button', { name: '音をオンにする' }).click();
-  await input.pressSequentially(next!.replaceAll(' ', '').slice(1));
+  await input.pressSequentially(next!.replaceAll(' ', '').slice(2));
   log = await logs();
   expect(log.filter(entry => entry.kind === 'effect').at(-1)?.text).toContain(nextEnglish ? 'Short' : 'Single');
   await page.getByRole('button', { name: '終了' }).click();

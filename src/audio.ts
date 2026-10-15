@@ -50,6 +50,10 @@ export class GameAudio {
     this.speak();
   }
 
+  letter(): void {
+    if (this.playing && isFixedCombination(this.words.split(' '))) this.playEffect(false);
+  }
+
   complete(nextWords: readonly string[]): void {
     if (!this.playing) return;
     const completedFixed = isFixedCombination(this.words.split(' '));

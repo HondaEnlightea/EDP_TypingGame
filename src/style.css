@@ -83,8 +83,9 @@ details summary { cursor: pointer; font-size: 12px; color: var(--muted); width: 
 .typing-surface .initial { color: var(--blue); }
 .typing-surface .typed { color: #547cba; text-shadow: 0 0 15px #3a9cff25; }
 .typing-surface .rainbow-typed {
-  color: hsl(var(--rainbow-hue) 100% 43%);
-  text-shadow: 0 0 6px hsl(var(--rainbow-hue) 100% 60% / .65), 0 0 18px hsl(var(--rainbow-hue) 100% 55% / .4);
+  background: hsl(var(--rainbow-hue) 100% 65% / .24);
+  box-shadow: 0 0 12px hsl(var(--rainbow-hue) 100% 60% / .5), 0 0 26px hsl(var(--rainbow-hue) 100% 55% / .25);
+  text-shadow: none;
 }
 .typing-surface .current { color: #182348; background: #ebefff; border-bottom-color: #9daee7; }
 .typing-surface:focus-within .current { box-shadow: 0 5px 12px -6px #478dff80; }
@@ -96,6 +97,7 @@ details summary { cursor: pointer; font-size: 12px; color: var(--muted); width: 
 html[data-effects="off"] .typing-surface::before, html[data-effects="off"] .result-score::before { display: none; }
 html[data-effects="off"] .prompt-word { animation: none; }
 html[data-effects="off"] .glyph { text-shadow: none; box-shadow: none; }
+html[data-effects="off"] .rainbow-typed { background: transparent; }
 .meaning { font-size: 15px; line-height: 1.9; color: var(--muted); margin: 23px 0 0; }
 .feedback { min-height: 28px; font-size: 12px; line-height: 1.9; color: var(--muted); margin: 22px 0 0; }
 .error-text { color: #a82a40; }

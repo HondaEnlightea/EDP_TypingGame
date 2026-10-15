@@ -240,6 +240,7 @@ function acceptLetter(key: string): void {
     setFeedback(`次は「${inputText(state.phrase)[state.position]}」`, true);
   } else {
     setFeedback();
+    sound.letter();
     if (outcome === 'completed') sound.complete(game.snapshot().phrase.words);
     if (outcome === 'completed') effects.burst(rect);
     else effects.letter(glyph);

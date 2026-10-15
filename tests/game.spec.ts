@@ -38,7 +38,7 @@ test('開始・ミス・お題の完成・結果・再プレイを一通り遊�
   expect(errors).toEqual([]);
 });
 
-test('指定2組は入力済みだけ虹色に光り、完成中も入力できる', async ({ page }) => {
+test('指定2組は入力済みの背景と光彩だけが虹色になり、完成中も入力できる', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('radio', { name: '練習' }).check();
   await page.getByRole('button', { name: 'はじめる' }).click();
@@ -51,8 +51,13 @@ test('指定2組は入力済みだけ虹色に光り、完成中も入力でき�
   await expect(page.locator('#word-display .current')).not.toHaveClass(/rainbow-typed/);
   await expect(page.locator('#word-display .glyph').last()).toHaveCSS('color', 'rgb(83, 98, 125)');
   const colors = await page.locator('#word-display .rainbow-typed').evaluateAll(glyphs => glyphs.map(glyph => getComputedStyle(glyph).color));
-  expect(new Set(colors).size).toBe(12);
-  await expect(page.locator('#word-display .rainbow-typed').first()).not.toHaveCSS('text-shadow', 'none');
+  expect(new Set(colors)).toEqual(new Set(['rgb(84, 124, 186)']));
+  const backgrounds = await page.locator('#word-display .rainbow-typed').evaluateAll(glyphs => glyphs.map(glyph => getComputedStyle(glyph).backgroundColor));
+  expect(new Set(backgrounds).size).toBe(12);
+  await expect(page.locator('#word-display .rainbow-typed').first()).toHaveCSS('text-shadow', 'none');
+  await expect(page.locator('#word-display .rainbow-typed').first()).not.toHaveCSS('box-shadow', 'none');
+  await expect(page.locator('#word-display .glyph').last()).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(page.locator('#word-display .reeling')).toHaveCount(0);
   await page.screenshot({ path: 'test-results/preview-rainbow-electric.png', fullPage: true });
   await input.pressSequentially('Processing');
   expect(await page.locator('.sparkle').count()).toBeGreaterThan(0);
@@ -77,9 +82,13 @@ test('指定2組は入力済みだけ虹色に光り、完成中も入力でき�
   await input.pressSequentially('EchigoDangerous');
   await expect(page.locator('#word-display .rainbow-typed')).toHaveCount(15);
   await expect(page.locator('#word-display .current')).not.toHaveClass(/rainbow-typed/);
+  await expect(page.locator('#word-display .rainbow-typed').first()).toHaveCSS('color', 'rgb(84, 124, 186)');
+  await expect(page.locator('#word-display .rainbow-typed').first()).not.toHaveCSS('box-shadow', 'none');
   await page.screenshot({ path: 'test-results/preview-rainbow-echigo.png', fullPage: true });
   await page.getByRole('button', { name: '演出をオフにする' }).click();
   await expect(page.locator('#word-display .rainbow-typed').first()).toHaveCSS('text-shadow', 'none');
+  await expect(page.locator('#word-display .rainbow-typed').first()).toHaveCSS('box-shadow', 'none');
+  await expect(page.locator('#word-display .rainbow-typed').first()).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await page.getByRole('button', { name: '演出をオンにする' }).click();
   await input.pressSequentially('People');
   await expect(page.locator('.sparkle')).toHaveCount(24);

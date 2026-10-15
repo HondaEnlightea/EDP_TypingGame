@@ -185,4 +185,34 @@ describe('効果音とお題の読み上げ', () => {
     expect(shorts.reduce((n, clip) => n + clip.play.mock.calls.length, 0)).toBe(3);
     expect(shorts.every(clip => !clip.pause.mock.calls.length)).toBe(true);
   });
+
+  it.each([
+    ['Electric', 'Data', 'Processing'],
+    ['eChIgO', 'dAnGeRoUs', 'pEoPlE'],
+  ])('指定の組 %s %s %s だけ1文字ごとにSingleを鳴らし、重なっても中断しない', (e, d, p) => {
+    const { audio, clips, speech } = setup();
+    audio.letter();
+    expect(clips.every(clip => !clip.play.mock.calls.length)).toBe(true);
+    audio.start([e, d, p]);
+    for (let i = 0; i < 8; i++) audio.letter();
+    const singles = clips.filter(clip => clip.src.includes('Single'));
+    expect(singles).toHaveLength(8);
+    expect(singles.every(clip => clip.play.mock.calls.length === 1 && !clip.pause.mock.calls.length)).toBe(true);
+    expect(speech.cancel).not.toHaveBeenCalled();
+    audio.complete(['Emerald', 'Delta', 'Phoenix']);
+    expect(clips.filter(clip => clip.src.includes('Short')).reduce((n, clip) => n + clip.play.mock.calls.length, 0)).toBe(2);
+    audio.letter();
+    expect(singles.reduce((n, clip) => n + clip.play.mock.calls.length, 0)).toBe(8);
+    audio.complete(['Electric', 'Data', 'Processing']);
+    expect(clips.filter(clip => clip.src.includes('Single')).reduce((n, clip) => n + clip.play.mock.calls.length, 0)).toBe(9);
+    audio.setEnabled(false);
+    audio.letter();
+    expect(clips.filter(clip => clip.src.includes('Single')).reduce((n, clip) => n + clip.play.mock.calls.length, 0)).toBe(9);
+    audio.setEnabled(true);
+    audio.letter();
+    expect(clips.filter(clip => clip.src.includes('Single')).reduce((n, clip) => n + clip.play.mock.calls.length, 0)).toBe(10);
+    audio.finish();
+    audio.letter();
+    expect(clips.filter(clip => clip.src.includes('Single')).reduce((n, clip) => n + clip.play.mock.calls.length, 0)).toBe(10);
+  });
 });
