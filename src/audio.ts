@@ -1,3 +1,5 @@
+import { isFixedCombination } from './prompts';
+
 export interface AudioRuntime {
   createClip(url: string): HTMLAudioElement;
   speech: SpeechSynthesis | undefined;
@@ -8,7 +10,7 @@ export interface AudioRuntime {
 /** Effects play independently; narration finishes before reading the latest prompt. */
 export class GameAudio {
   private readonly single: HTMLAudioElement[];
-  private readonly short: HTMLAudioElement;
+  private readonly short: HTMLAudioElement[];
   private readonly active = new Map<HTMLAudioElement, number>();
   private serial = 0;
   private utterance: SpeechSynthesisUtterance | undefined;
@@ -25,7 +27,7 @@ export class GameAudio {
     hidden: () => document.hidden,
   }) {
     this.single = Array.from({ length: 4 }, () => this.createClip('Quiz-Ding_Dong04-4(Single).mp3', .3));
-    this.short = this.createClip('Quiz-Ding_Dong04-1(Short).mp3', .4);
+    this.short = [this.createClip('Quiz-Ding_Dong04-1(Short).mp3', .4)];
     runtime.speech?.addEventListener('voiceschanged', () => this.speak());
     runtime.speech?.getVoices();
   }
@@ -44,27 +46,22 @@ export class GameAudio {
     this.playing = true;
     this.words = words.join(' ');
     ++this.revision;
-    this.playClip(this.short);
+    this.playEffect(true);
     this.speak();
   }
 
   complete(nextWords: readonly string[]): void {
     if (!this.playing) return;
+    const completedFixed = isFixedCombination(this.words.split(' '));
     this.words = nextWords.join(' ');
     ++this.revision;
-    let clip = this.single.find(item => !this.active.has(item));
-    if (!clip) {
-      // Never restart a sounding success tone, even during very fast completions.
-      clip = this.createClip('Quiz-Ding_Dong04-4(Single).mp3', .3);
-      this.single.push(clip);
-    }
-    this.playClip(clip);
+    this.playEffect(completedFixed);
     this.speak();
   }
 
   finish(): void {
     this.stop();
-    this.playClip(this.short);
+    this.playEffect(true);
   }
 
   stop(): void {
@@ -91,6 +88,17 @@ export class GameAudio {
 
   resume(): void { this.speak(); }
 
+  private playEffect(short: boolean): void {
+    const pool = short ? this.short : this.single;
+    let clip = pool.find(item => !this.active.has(item));
+    if (!clip) {
+      // A success must not restart another tone that is still sounding.
+      clip = this.createClip(short ? 'Quiz-Ding_Dong04-1(Short).mp3' : 'Quiz-Ding_Dong04-4(Single).mp3', short ? .4 : .3);
+      pool.push(clip);
+    }
+    this.playClip(clip);
+  }
+
   private playClip(clip: HTMLAudioElement): void {
     if (!this.enabled || this.runtime.hidden()) return;
     clip.currentTime = 0;
@@ -107,12 +115,15 @@ export class GameAudio {
     const speech = this.runtime.speech;
     if (!speech) return;
     const voices = speech.getVoices().filter(voice => voice.localService);
-    const voice = voices.find(voice => /^en[-_]/i.test(voice.lang)) ?? voices.find(voice => voice.default) ?? voices[0];
-    if (!voice) return;
+    const english = isFixedCombination(this.words.split(' '));
+    const voice = english
+      ? voices.find(voice => /^en(?:[-_]|$)/i.test(voice.lang) && /zira/i.test(voice.name)) ?? voices.find(voice => /^en[-_]us$/i.test(voice.lang)) ?? voices.find(voice => /^en(?:[-_]|$)/i.test(voice.lang))
+      : voices.find(voice => /^ja(?:[-_]|$)/i.test(voice.lang));
+    if (!english && !voices.length) return;
     const utterance = this.runtime.createUtterance(this.words);
-    utterance.voice = voice;
-    utterance.lang = voice.lang;
-    utterance.rate = 1.3;
+    utterance.voice = voice ?? null;
+    utterance.lang = english ? 'en-US' : 'ja-JP';
+    utterance.rate = english ? .85 : 1.3;
     utterance.volume = .8;
     const revision = this.revision;
     const done = (): void => {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { parsePhrases, parseWordPools } from './phrases';
-import { buildWordPools, generatePrompt } from './prompts';
+import { buildWordPools, generatePrompt, isFixedCombination } from './prompts';
 import phrasesData from './data/phrases.json';
 import slotData from './data/slot-words.json';
 
@@ -52,5 +52,19 @@ describe('6問ループと単語抽選', () => {
       { version: 1, words: { ...slot, D: ['People'] } }, { version: 1, words: { ...slot, P: ['P!'] } }]) {
       expect(() => parseWordPools(invalid)).toThrow();
     }
+  });
+
+  it('Enormousを除外し、同じ組にあったDragonとPowerは残す', () => {
+    expect(pools.E.map(word => word.toLowerCase())).not.toContain('enormous');
+    expect(pools.D).toContain('Dragon');
+    expect(pools.P).toContain('Power');
+  });
+
+  it('固定位置やIDではなく3単語の組で英語とShortの対象を判定する', () => {
+    expect(isFixedCombination(['Electric', 'Data', 'Processing'])).toBe(true);
+    expect(isFixedCombination(['ECHIGO', 'DANGEROUS', 'PEOPLE'])).toBe(true);
+    expect(isFixedCombination(['Electronic', 'Data', 'Processing'])).toBe(false);
+    expect(isFixedCombination(['Electric', 'Dangerous', 'People'])).toBe(false);
+    expect(isFixedCombination(['Electric', 'Data'])).toBe(false);
   });
 });

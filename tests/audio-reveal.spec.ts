@@ -33,9 +33,9 @@ test('EDPを固定し、短い切り替え中にも入力できる', async ({ pa
   await expect(page.locator('#word-display .reeling')).toHaveCount(0);
 });
 
-test('3単語完成でSingleを鳴らし、読み上げは即時に始め、重なっても中断しない', async ({ page }) => {
+test('指定の2組は英語とShort、通常は日本語とSingleに切り替え、音を中断しない', async ({ page }) => {
   await page.addInitScript(() => {
-    type Entry = { kind: 'effect' | 'speech' | 'cancel' | 'pause'; text: string; overlap?: boolean; at: number };
+    type Entry = { kind: 'effect' | 'speech' | 'cancel' | 'pause'; text: string; overlap?: boolean; at: number; lang?: string; voice?: string | null };
     const log: Entry[] = [];
     Object.defineProperty(window, 'SpeechSynthesisUtterance', { value: class {
       voice = null;
@@ -64,12 +64,16 @@ test('3単語完成でSingleを鳴らし、読み上げは即時に始め、重�
       originalPause.call(this);
     };
     Object.defineProperty(window, 'speechSynthesis', { value: {
-      getVoices: () => [{ lang: 'en-US', localService: true, default: true, name: 'Test local voice' }],
+      getVoices: () => [
+        { lang: 'en-US', localService: true, default: true, name: 'Test English' },
+        { lang: 'ja-JP', localService: true, default: false, name: 'Test Japanese' },
+        { lang: 'en-US', localService: true, default: false, name: 'Microsoft Zira' },
+      ],
       addEventListener: () => {},
       speak: (next: SpeechSynthesisUtterance) => {
         talking = true;
         utterance = next;
-        log.push({ kind: 'speech', text: next.text, overlap: active.size > 0, at: performance.now() });
+        log.push({ kind: 'speech', text: next.text, overlap: active.size > 0, at: performance.now(), lang: next.lang, voice: next.voice?.name ?? null });
         setTimeout(() => {
           if (utterance !== next) return;
           talking = false;
@@ -86,9 +90,10 @@ test('3単語完成でSingleを鳴らし、読み上げは即時に始め、重�
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'はじめる' }).click();
-  const logs = () => page.evaluate(() => (window as Window & { audioLog?: { kind: string; text: string; overlap?: boolean; at: number }[] }).audioLog!);
+  const logs = () => page.evaluate(() => (window as Window & { audioLog?: { kind: string; text: string; overlap?: boolean; at: number; lang?: string; voice?: string | null }[] }).audioLog!);
   await expect.poll(async () => (await logs()).some(entry => entry.kind === 'speech' && entry.text === 'Electric Data Processing')).toBe(true);
   const opening = await logs();
+  expect(opening.find(entry => entry.kind === 'speech')).toMatchObject({ lang: 'en-US', voice: 'Microsoft Zira' });
   expect(opening.find(entry => entry.kind === 'speech')!.at - opening.find(entry => entry.kind === 'effect')!.at).toBeLessThan(60);
   const input = page.getByRole('textbox');
   await input.press('x');
@@ -99,7 +104,10 @@ test('3単語完成でSingleを鳴らし、読み上げは即時に始め、重�
   const next = await page.locator('#word-display').getAttribute('aria-label');
   await expect.poll(async () => (await logs()).some(entry => entry.kind === 'speech' && entry.text === next)).toBe(true);
   let log = await logs();
-  expect(log.filter(entry => entry.kind === 'effect' && entry.text.includes('Single'))).toHaveLength(1);
+  expect(log.filter(entry => entry.kind === 'effect' && entry.text.includes('Single'))).toHaveLength(0);
+  expect(log.filter(entry => entry.kind === 'effect' && entry.text.includes('Short'))).toHaveLength(2);
+  const nextEnglish = ['Electric Data Processing', 'Echigo Dangerous People'].includes(next!);
+  expect(log.filter(entry => entry.kind === 'speech').at(-1)).toMatchObject({ lang: nextEnglish ? 'en-US' : 'ja-JP', voice: nextEnglish ? 'Microsoft Zira' : 'Test Japanese' });
   expect(log.filter(entry => entry.kind === 'cancel')).toHaveLength(0);
   expect(log.filter(entry => entry.kind === 'pause')).toHaveLength(0);
   expect(log.some(entry => entry.overlap)).toBe(true);
@@ -109,13 +117,16 @@ test('3単語完成でSingleを鳴らし、読み上げは即時に始め、重�
   await input.press('e');
   expect((await logs()).filter(entry => entry.kind === 'effect')).toHaveLength(effectsBefore);
   await page.getByRole('button', { name: '音をオンにする' }).click();
+  await input.pressSequentially(next!.replaceAll(' ', '').slice(1));
+  log = await logs();
+  expect(log.filter(entry => entry.kind === 'effect').at(-1)?.text).toContain(nextEnglish ? 'Short' : 'Single');
   await page.getByRole('button', { name: '終了' }).click();
   log = await logs();
-  expect(log.filter(entry => entry.kind === 'effect' && entry.text.includes('Short'))).toHaveLength(2);
+  expect(log.filter(entry => entry.kind === 'effect' && entry.text.includes('Short'))).toHaveLength(nextEnglish ? 4 : 3);
   expect(log.some(entry => entry.overlap)).toBe(true);
   await page.getByRole('button', { name: 'もう一度' }).click();
   await expect(page.locator('#score-value')).toHaveText('0');
-  expect((await logs()).filter(entry => entry.kind === 'effect' && entry.text.includes('Short'))).toHaveLength(3);
+  expect((await logs()).filter(entry => entry.kind === 'effect' && entry.text.includes('Short'))).toHaveLength(nextEnglish ? 5 : 4);
 });
 
 test('配置された2つのMP3をブラウザで実際にデコードできる', async ({ page }) => {

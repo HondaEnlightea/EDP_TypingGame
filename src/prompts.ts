@@ -10,6 +10,11 @@ export const ECHIGO_PROMPT: Phrase = {
   meaningJa: '越後のヤバいやつら。', tags: ['edp'],
 };
 
+export function isFixedCombination(words: readonly string[]): boolean {
+  return words.length === 3 && [ELECTRIC_PROMPT, ECHIGO_PROMPT].some(phrase =>
+    words.every((word, i) => word.toLowerCase() === phrase.words[i]!.toLowerCase()));
+}
+
 export function buildWordPools(phrases: readonly Phrase[], additional?: WordPools): WordPools {
   const result: { E: string[]; D: string[]; P: string[] } = { E: [], D: [], P: [] };
   for (const [index, initial] of (['E', 'D', 'P'] as const).entries()) {
