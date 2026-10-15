@@ -20,10 +20,10 @@ test('開始・ミス・お題の完成・結果・再プレイを一通り遊�
   await expect(input).toHaveValue('elec');
   await page.screenshot({ path: 'test-results/preview-playing.png', fullPage: true });
   await input.pressSequentially('tricDataProcessing');
-  await expect(page.locator('#score-value')).toHaveText('22');
+  await expect(page.locator('#score-value')).toHaveText('220');
   await expect(input).toHaveValue('');
   await page.getByRole('button', { name: '終了' }).click();
-  await expect(page.locator('#result-score')).toHaveText('22');
+  await expect(page.locator('#result-score')).toHaveText('220');
   await expect(page.locator('#result-completed')).toHaveText('1 組');
   await expect(page.locator('#result-misses')).toHaveText('1');
   await expect(page.locator('#result-accuracy')).toHaveText('95.7%');
@@ -38,18 +38,29 @@ test('開始・ミス・お題の完成・結果・再プレイを一通り遊�
   expect(errors).toEqual([]);
 });
 
-test('固定問題も通常と同じ青い演出で、完成中も入力できる', async ({ page }) => {
+test('指定2組は入力済みだけ虹色に光り、完成中も入力できる', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('radio', { name: '練習' }).check();
   await page.getByRole('button', { name: 'はじめる' }).click();
   const input = page.getByRole('textbox');
   await expect(page.locator('#word-display')).toHaveText('ElectricDataProcessing');
   await expect(page.locator('#word-display .prompt-word').first()).toHaveCSS('background-image', 'none');
-  await input.pressSequentially('ElectricDataProcessing');
+  await expect(page.locator('#word-display .rainbow-typed')).toHaveCount(0);
+  await input.pressSequentially('ElectricData');
+  await expect(page.locator('#word-display .rainbow-typed')).toHaveCount(12);
+  await expect(page.locator('#word-display .current')).not.toHaveClass(/rainbow-typed/);
+  await expect(page.locator('#word-display .glyph').last()).toHaveCSS('color', 'rgb(83, 98, 125)');
+  const colors = await page.locator('#word-display .rainbow-typed').evaluateAll(glyphs => glyphs.map(glyph => getComputedStyle(glyph).color));
+  expect(new Set(colors).size).toBe(12);
+  await expect(page.locator('#word-display .rainbow-typed').first()).not.toHaveCSS('text-shadow', 'none');
+  await page.screenshot({ path: 'test-results/preview-rainbow-electric.png', fullPage: true });
+  await input.pressSequentially('Processing');
   expect(await page.locator('.sparkle').count()).toBeGreaterThan(0);
   const next = (await page.locator('#word-display').innerText()).toLowerCase();
   await input.press(next[0]!);
-  await expect(page.locator('#score-value')).toHaveText('23');
+  const special = ['electricdataprocessing', 'echigodangerouspeople'].includes(next);
+  await expect(page.locator('#score-value')).toHaveText(String(220 + (special ? 10 : 1)));
+  await expect(page.locator('#word-display .rainbow-typed')).toHaveCount(special ? 1 : 0);
   await page.getByRole('button', { name: '演出をオフにする' }).click();
   await expect(page.locator('.sparkle')).toHaveCount(0);
   await expect(input).toBeFocused();
@@ -62,7 +73,15 @@ test('固定問題も通常と同じ青い演出で、完成中も入力でき�
   await expect(page.locator('#word-display .prompt-word').last()).toHaveCSS('background-image', 'none');
   await expect(page.locator('#word-display .glyph').last()).toHaveCSS('color', 'rgb(83, 98, 125)');
   await page.screenshot({ path: 'test-results/preview-fixed-echigo.png', fullPage: true });
-  await input.pressSequentially('EchigoDangerousPeople');
+  await expect(page.locator('#word-display .rainbow-typed')).toHaveCount(0);
+  await input.pressSequentially('EchigoDangerous');
+  await expect(page.locator('#word-display .rainbow-typed')).toHaveCount(15);
+  await expect(page.locator('#word-display .current')).not.toHaveClass(/rainbow-typed/);
+  await page.screenshot({ path: 'test-results/preview-rainbow-echigo.png', fullPage: true });
+  await page.getByRole('button', { name: '演出をオフにする' }).click();
+  await expect(page.locator('#word-display .rainbow-typed').first()).toHaveCSS('text-shadow', 'none');
+  await page.getByRole('button', { name: '演出をオンにする' }).click();
+  await input.pressSequentially('People');
   await expect(page.locator('.sparkle')).toHaveCount(24);
   await page.screenshot({ path: 'test-results/preview-sparkles.png', fullPage: true });
   await page.getByRole('button', { name: '終了' }).click();
@@ -70,6 +89,7 @@ test('固定問題も通常と同じ青い演出で、完成中も入力でき�
   await expect(page.locator('.sparkle')).toHaveCount(0);
   await expect(input).toHaveValue('');
   await expect(page.locator('#score-value')).toHaveText('0');
+  await expect(page.locator('#word-display .rainbow-typed')).toHaveCount(0);
 });
 
 test('6問ループを繰り返し、再プレイは1問目に戻る', async ({ page }) => {
@@ -99,10 +119,10 @@ test('動きを抑える設定では粒子や繰り返すアニメーション�
   await page.getByRole('button', { name: 'はじめる' }).click();
   await page.getByRole('textbox').pressSequentially('ElectricDataProcessing');
   await expect(page.locator('.sparkle')).toHaveCount(0);
-  await expect(page.locator('#score-value')).toHaveText('22');
+  await expect(page.locator('#score-value')).toHaveText('220');
   await page.getByRole('button', { name: '終了' }).click();
   await expect(page.locator('.sparkle')).toHaveCount(0);
-  await expect(page.locator('#result-score')).toHaveText('22');
+  await expect(page.locator('#result-score')).toHaveText('220');
 });
 
 test('見本を左から一文字ずつポップし、演出オフと開始時に停止する', async ({ page }) => {
@@ -154,7 +174,7 @@ test('60秒で自動終了し、再プレイは新しい60秒で始まる', asyn
   await page.getByRole('textbox').press('e');
   await page.clock.fastForward(60_100);
   await expect(page.getByRole('heading', { name: 'タイムアップ' })).toBeVisible();
-  await expect(page.locator('#result-score')).toHaveText('1');
+  await expect(page.locator('#result-score')).toHaveText('10');
   await expect(page.locator('#result-time')).toHaveText('60.0 秒');
   await page.getByRole('button', { name: 'もう一度' }).click();
   await expect(page.locator('#time-value')).toHaveText('60秒');
@@ -175,7 +195,7 @@ test('練習モードに時間制限はなく、終了後にモードを選び�
   await expect(page.locator('#time-label')).toHaveText('経過時間');
   await page.getByRole('textbox').pressSequentially('electr');
   await page.getByRole('button', { name: '終了' }).click();
-  await expect(page.locator('#result-score')).toHaveText('6');
+  await expect(page.locator('#result-score')).toHaveText('60');
   await page.getByRole('button', { name: 'もう一度' }).click();
   await expect(page.locator('#time-label')).toHaveText('経過時間');
   await page.getByRole('button', { name: '終了' }).click();
@@ -202,7 +222,7 @@ test('長押し、IME、貼り付けでスコアが増えず、フォーカス�
   await input.click();
   await input.press('e');
   await expect(input).toHaveValue('e');
-  await expect(page.locator('#score-value')).toHaveText('1');
+  await expect(page.locator('#score-value')).toHaveText('10');
 });
 
 test('入力しなかった結果は0点、正確率は未計測として表示する', async ({ page }) => {

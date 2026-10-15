@@ -9,6 +9,7 @@
 - Narrate the current prompt's words dynamically. Do not require prerecorded prompt audio or regeneration when the question data changes.
 - Narrate Electric Data Processing and Echigo Dangerous People in English (en-US, prefer Zira), and use Short on their completion, including random occurrences. Narrate other prompts in Japanese and use Single on completion. Do not interrupt sounds just because they overlap.
 - Input joins the words without spaces and ignores letter case. A wrong letter does not advance the cursor.
+- For Electric Data Processing and Echigo Dangerous People, glow only correctly typed letters in vivid rainbow colors and award 10 points per correct letter (other prompts: 1 point). Apply this to random occurrences too; accuracy and combo always count characters, independent of points.
 - Keep game rules independent of the DOM. Verify timing boundaries and replay resets.
 - Commit messages use an English word, a full-width colon, and Japanese, e.g. `Add：タイピング試作を実装`.
 - Never stage or commit `doc/遠雷亭_SLOT_年刊EDP2026_第2版.pdf`. Keep its ignore rule.

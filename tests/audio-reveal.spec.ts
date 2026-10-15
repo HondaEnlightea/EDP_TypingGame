@@ -22,7 +22,7 @@ test('EDPを固定し、短い切り替え中にも入力できる', async ({ pa
   await page.clock.runFor(230);
   await expect(page.locator('#word-display .reeling')).toHaveCount(0);
   await input.pressSequentially('ectricdataprocessing');
-  await expect(page.locator('#score-value')).toHaveText('22');
+  await expect(page.locator('#score-value')).toHaveText('220');
   await expect(input).toHaveValue('');
   expect(await page.locator('#word-display .reeling').count()).toBeGreaterThan(0);
   await page.getByRole('button', { name: '演出をオフにする' }).click();

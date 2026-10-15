@@ -155,9 +155,11 @@ export class TypingEffects {
 
   letter(glyph: HTMLElement | null): void {
     if (!this.enabled || this.motion.matches || !glyph) return;
+    const hue = glyph.style.getPropertyValue('--rainbow-hue');
+    const rainbow = glyph.classList.contains('rainbow-typed');
     this.play(glyph, [
-      { textShadow: '0 0 8px #32baff, 0 0 22px #548aff' },
-      { textShadow: '0 0 0 transparent' },
+      { textShadow: rainbow ? `0 0 8px hsl(${hue} 100% 60%), 0 0 24px hsl(${hue} 100% 55% / .7)` : '0 0 8px #32baff, 0 0 22px #548aff' },
+      { textShadow: getComputedStyle(glyph).textShadow },
     ], 280);
   }
 

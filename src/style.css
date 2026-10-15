@@ -82,6 +82,10 @@ details summary { cursor: pointer; font-size: 12px; color: var(--muted); width: 
 .reel-cell::before { content: attr(data-symbol); }
 .typing-surface .initial { color: var(--blue); }
 .typing-surface .typed { color: #547cba; text-shadow: 0 0 15px #3a9cff25; }
+.typing-surface .rainbow-typed {
+  color: hsl(var(--rainbow-hue) 100% 43%);
+  text-shadow: 0 0 6px hsl(var(--rainbow-hue) 100% 60% / .65), 0 0 18px hsl(var(--rainbow-hue) 100% 55% / .4);
+}
 .typing-surface .current { color: #182348; background: #ebefff; border-bottom-color: #9daee7; }
 .typing-surface:focus-within .current { box-shadow: 0 5px 12px -6px #478dff80; }
 .has-miss .typing-surface .current { color: #a82a40; background: #fff0f3; border-bottom-color: #a82a40; box-shadow: none; }

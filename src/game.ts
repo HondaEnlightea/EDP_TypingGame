@@ -1,6 +1,6 @@
 import { inputText } from './phrases';
 import type { Phrase, WordPools } from './phrases';
-import { buildWordPools, ELECTRIC_PROMPT, generatePrompt } from './prompts';
+import { buildWordPools, ELECTRIC_PROMPT, generatePrompt, isFixedCombination } from './prompts';
 
 export type Mode = 'timed' | 'practice';
 export type Phase = 'ready' | 'playing' | 'finished';
@@ -28,6 +28,7 @@ export class TypingGame {
   private phrase: Phrase;
   private position = 0;
   private score = 0;
+  private correct = 0;
   private misses = 0;
   private completed = 0;
   private combo = 0;
@@ -44,7 +45,7 @@ export class TypingGame {
   start(mode: Mode, now: number): void {
     this.mode = mode;
     this.phase = 'playing';
-    this.position = this.score = this.misses = this.completed = this.combo = this.maxCombo = 0;
+    this.position = this.score = this.correct = this.misses = this.completed = this.combo = this.maxCombo = 0;
     this.startedAt = now;
     this.elapsedMs = 0;
     this.phrase = ELECTRIC_PROMPT;
@@ -68,7 +69,8 @@ export class TypingGame {
       this.combo = 0;
       return 'miss';
     }
-    this.score += 1;
+    this.score += isFixedCombination(this.phrase.words) ? 10 : 1;
+    this.correct += 1;
     this.combo += 1;
     this.maxCombo = Math.max(this.maxCombo, this.combo);
     this.position += 1;
@@ -88,12 +90,12 @@ export class TypingGame {
   }
 
   snapshot(): GameSnapshot {
-    const attempts = this.score + this.misses;
+    const attempts = this.correct + this.misses;
     return {
       phase: this.phase, mode: this.mode, phrase: this.phrase,
       position: this.position, score: this.score, misses: this.misses,
       completed: this.completed, combo: this.combo, maxCombo: this.maxCombo,
-      accuracy: attempts === 0 ? null : (this.score / attempts) * 100,
+      accuracy: attempts === 0 ? null : (this.correct / attempts) * 100,
       elapsedMs: this.elapsedMs,
       remainingMs: this.mode === 'timed' ? Math.max(0, ROUND_DURATION_MS - this.elapsedMs) : null,
     };

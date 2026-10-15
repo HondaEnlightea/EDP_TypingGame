@@ -7,6 +7,7 @@ import { inputText, parsePhrases, parseWordPools } from './phrases';
 import type { Phrase } from './phrases';
 import { TypingEffects } from './effects';
 import { GameAudio } from './audio';
+import { isFixedCombination } from './prompts';
 
 const phrases = parsePhrases(phraseData);
 const game = new TypingGame(phrases, Math.random, parseWordPools(slotWordData));
@@ -42,6 +43,7 @@ app.innerHTML = `
           <ul>
             <li>半角英数で入力。大文字・小文字はどちらでも。</li>
             <li>スペース不要。ミスしても、正しい文字を打てば続きます。</li>
+            <li>通常は1文字1点。ElectricDataProcessing・EchigoDangerousPeopleは1文字10点。</li>
             <li>60秒モードは開始と同時に計測。画面を離れても時間は進みます。</li>
             <li>練習モードは時間制限なし。「終了」で結果を見られます。</li>
             <li>音は画面上部で切り替え。3単語の完成時に成功音が鳴り、出題直後にお題を読みます。読み上げは端末の音声を使用します。</li>
@@ -120,6 +122,7 @@ function buildWords(container: HTMLElement, phrase: Phrase): void {
   container.replaceChildren();
   container.style.setProperty('--prompt-length', String(inputText(phrase).length));
   container.setAttribute('aria-label', phrase.words.join(' '));
+  let index = 0;
   for (const word of phrase.words) {
     const group = document.createElement('span');
     group.className = 'prompt-word';
@@ -127,6 +130,7 @@ function buildWords(container: HTMLElement, phrase: Phrase): void {
       const glyph = document.createElement('span');
       glyph.className = i === 0 ? 'glyph initial' : 'glyph';
       glyph.textContent = char;
+      glyph.style.setProperty('--rainbow-hue', String(index++ * 300 / Math.max(1, inputText(phrase).length - 1)));
       group.append(glyph);
     }
     container.append(group);
@@ -164,6 +168,7 @@ function renderPrompt(): void {
   }
   wordDisplay.querySelectorAll<HTMLElement>('.glyph').forEach((span, i) => {
     span.classList.toggle('typed', i < position);
+    span.classList.toggle('rainbow-typed', i < position && isFixedCombination(phrase.words));
     span.classList.toggle('current', i === position);
     if (i <= position) effects.resolve(span);
   });

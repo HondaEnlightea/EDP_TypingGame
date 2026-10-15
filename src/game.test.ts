@@ -19,10 +19,10 @@ describe('タイピングの進行と採点', () => {
     game.start('timed', 0);
     expect(game.type('E', 10)).toBe('correct');
     expect(game.type('x', 20)).toBe('miss');
-    expect(game.snapshot()).toMatchObject({ score: 1, misses: 1, position: 1, combo: 0, maxCombo: 1, accuracy: 50 });
+    expect(game.snapshot()).toMatchObject({ score: 10, misses: 1, position: 1, combo: 0, maxCombo: 1, accuracy: 50 });
     game.type('L', 30);
     game.type('E', 40);
-    expect(game.snapshot()).toMatchObject({ score: 3, misses: 1, combo: 2, maxCombo: 2, accuracy: 75 });
+    expect(game.snapshot()).toMatchObject({ score: 30, misses: 1, combo: 2, maxCombo: 2, accuracy: 75 });
   });
 
   it('スペース・削除・記号・日本語・複数文字を採点しない', () => {
@@ -57,10 +57,10 @@ describe('タイピングの進行と採点', () => {
     game.start('timed', 100);
     expect(game.type('e', 100 + ROUND_DURATION_MS - 1)).toBe('correct');
     expect(game.type('c', 100 + ROUND_DURATION_MS)).toBe('finished');
-    expect(game.snapshot()).toMatchObject({ phase: 'finished', score: 1, elapsedMs: 60_000, remainingMs: 0 });
+    expect(game.snapshot()).toMatchObject({ phase: 'finished', score: 10, elapsedMs: 60_000, remainingMs: 0 });
     game.tick(999_999);
     expect(game.type('c', 999_999)).toBe('finished');
-    expect(game.snapshot().score).toBe(1);
+    expect(game.snapshot().score).toBe(10);
   });
 
   it('バックグラウンドから戻っても実際の経過時間で終了する', () => {
@@ -78,7 +78,7 @@ describe('タイピングの進行と採点', () => {
     game.type('e', 91_001);
     game.finish(92_000);
     game.finish(99_000);
-    expect(game.snapshot()).toMatchObject({ phase: 'finished', score: 1, elapsedMs: 91_000 });
+    expect(game.snapshot()).toMatchObject({ phase: 'finished', score: 10, elapsedMs: 91_000 });
   });
 
   it('再プレイはお題、計測、得点、ミス、コンボをすべて初期化する', () => {
@@ -91,6 +91,39 @@ describe('タイピングの進行と採点', () => {
     expect(game.snapshot()).toMatchObject({ phase: 'playing', mode: 'timed', score: 0, misses: 0, completed: 0, position: 0, combo: 0, maxCombo: 0, elapsedMs: 0, remainingMs: 60_000, accuracy: null });
     expect(inputText(game.snapshot().phrase)).toBe('electricdataprocessing');
     expect(game.type('E', 4001)).toBe('correct');
+    game.type('x', 4002);
+    expect(game.snapshot()).toMatchObject({ score: 10, accuracy: 50, combo: 0 });
+  });
+
+  it('指定2組は最後の文字まで10点、通常問題は1点で正確率は文字数から求める', () => {
+    const normal = { id: 'normal', words: ['Emerald', 'Delta', 'Phoenix'] as const, meaningJa: '', tags: [] };
+    const game = new TypingGame([normal], () => 0);
+    game.start('practice', 0);
+    for (const key of inputText(game.snapshot().phrase)) game.type(key, 1);
+    expect(game.snapshot()).toMatchObject({ score: 220, completed: 1, accuracy: 100, combo: 22 });
+    expect(game.snapshot().phrase.words).toEqual(normal.words);
+    game.type('e', 2);
+    game.type('x', 3);
+    expect(game.snapshot().score).toBe(221);
+    expect(game.snapshot().accuracy).toBeCloseTo(23 / 24 * 100);
+    for (const key of inputText(normal).slice(1)) game.type(key, 4);
+    for (const key of inputText(normal)) game.type(key, 5);
+    expect(inputText(game.snapshot().phrase)).toBe('echigodangerouspeople');
+    const before = game.snapshot().score;
+    for (const key of inputText(game.snapshot().phrase)) game.type(key, 6);
+    expect(game.snapshot().score - before).toBe(210);
+    expect(game.snapshot().completed).toBe(4);
+  });
+
+  it('ランダム枠で指定の組み合わせが出た場合も大文字小文字を問わず10倍にする', () => {
+    const words = ['eLeCtRiC', 'dAtA', 'pRoCeSsInG'] as const;
+    const game = new TypingGame([{ id: 'mixed', words, meaningJa: '', tags: [] }], () => 0);
+    game.start('practice', 0);
+    for (const key of inputText(game.snapshot().phrase)) game.type(key, 1);
+    expect(game.snapshot().phrase.id).toBe('random-1');
+    expect(game.snapshot().phrase.words).toEqual(words);
+    for (const key of inputText(game.snapshot().phrase)) game.type(key, 2);
+    expect(game.snapshot()).toMatchObject({ score: 440, completed: 2, accuracy: 100, combo: 44 });
   });
 });
 
