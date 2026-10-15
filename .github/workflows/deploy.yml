@@ -1,5 +1,4 @@
-# Simple workflow for deploying static content to GitHub Pages
-name: Deploy static content to Pages
+name: ゲームの検証とGitHub Pagesへの公開
 
 on:
   # Runs on pushes targeting the default branch
@@ -33,10 +32,12 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: lts/*
+          node-version: '24'
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
+      - name: Test
+        run: npm test
       - name: Build
         run: npm run build
       - name: Setup Pages

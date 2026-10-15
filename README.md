@@ -30,6 +30,16 @@ npm.cmd run preview
 
 `http://127.0.0.1:4173/` で確認できる。`dist/`にHTML・CSS・JavaScript・ロゴが出力される。ブラウザでHTMLを直接開くのではなく、HTTPサーバーで配信する。初回のパッケージ導入には通信が必要だが、導入後の起動とプレイは外部素材への通信を必要としない。
 
+## GitHub Pagesでの公開
+
+公開先：<https://HondaEnlightea.github.io/EDP_TypingGame/>
+
+GitHubのリポジトリ設定で「Settings → Pages → Build and deployment → Source」を「GitHub Actions」にする。`main`へ変更をpushすると、`.github/workflows/deploy.yml`がNode.js 24で依存関係を導入し、テスト・ビルド後に`dist/`だけを公開する。公開の成否はGitHubの「Actions」で確認できる。手元のコミットはpushするまで公開先へ反映されない。
+
+Jekyll用の公開処理は併用しない。ソースの`index.html`を直接配信するとゲームが動かないため、Viteでビルドした成果物を使う。ロゴ・効果音は成果物に含め、参考PDFはGitにも公開成果物にも含めない。素材の参照先は相対パスなので、`/EDP_TypingGame/`配下で動作する。
+
+公開更新後はページを再読み込みする。古い表示が残る場合は`Ctrl+F5`で再読み込みする。現在の版は訪問時とゲーム開始時に`ElectricDataProcessing`を表示する。
+
 ## 実装済みの試作（1日目）
 
 - TypeScript + Vite + 通常のHTML/CSS。依存バージョンは`package-lock.json`で固定。
